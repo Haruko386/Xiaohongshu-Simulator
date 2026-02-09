@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小红书 - 你的生活指南</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="../static/index.css" rel="stylesheet">
+</head>
+<body>
+
+<aside class="sidebar">
+    <div class="logo">小红书</div>
+    <nav>
+        <a href="#" class="nav-item active"><i class="fas fa-compass"></i> 发现</a>
+        <a href="#" class="nav-item"><i class="fas fa-plus-square"></i> 发布</a>
+        <a href="#" class="nav-item"><i class="fas fa-bell"></i> 通知</a>
+        <a href="#" class="nav-item"><i class="fas fa-user"></i> 我</a>
+    </nav>
+</aside>
+
+<main class="main-content">
+    <header class="header">
+        <div class="search-bar">
+            <i class="fas fa-search"></i>
+            <input type="text" placeholder="搜索小红书">
+        </div>
+    </header>
+
+    <nav class="categories">
+        <div class="cat-item active">推荐</div>
+        <div class="cat-item">穿搭</div>
+        <div class="cat-item">美食</div>
+        <div class="cat-item">彩妆</div>
+        <div class="cat-item">影视</div>
+        <div class="cat-item">职场</div>
+        <div class="cat-item">家居</div>
+        <div class="cat-item">游戏</div>
+        <div class="cat-item">旅行</div>
+        <div class="cat-item">健身</div>
+    </nav>
+
+    <div class="waterfall-container">
+        {{ range .Posts }}
+            <div class="card">
+                <img src="{{ .CoverImage }}" alt="{{ .Title }}" class="card-img">
+                <div class="card-info">
+                    <div class="card-title">{{ .Title }}</div>
+                    <div class="card-meta">
+                        <div class="user-info">
+                            <div class="avatar"></div>
+                            <span>用户名称</span>
+                        </div>
+                        <div class="likes">
+                            <i class="far fa-heart"></i>
+                            <span>123</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {{ end }}
+    </div>
+</main>
+
+</body>
+</html>
