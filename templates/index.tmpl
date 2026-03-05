@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小红书 - 你的生活指南</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="../static/index.css" rel="stylesheet">
+    <link href="/static/index.css" rel="stylesheet">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
         <a href="#" class="nav-item active"><i class="fas fa-compass"></i> 发现</a>
         <a href="#" class="nav-item"><i class="fas fa-plus-square"></i> 发布</a>
         <a href="#" class="nav-item"><i class="fas fa-bell"></i> 通知</a>
-        <a href="#" class="nav-item"><i class="fas fa-user"></i> 我</a>
+        <a href="/user/profile/{{.LoggedInUserID}}" class="nav-item" onclick="checkLogin(event, '{{.LoggedInUserID}}')"><i class="fas fa-user"></i> 我</a>
     </nav>
 </aside>
 
@@ -61,6 +61,125 @@
         {{ end }}
     </div>
 </main>
+
+<div id="login-modal" class="modal-overlay" {{ if .NeedsLogin }}style="display: flex;"
+     {{ else }}style="display: none;"{{ end }}>
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal()"><i class="fas fa-times"></i></span>
+
+        <div class="modal-left">
+            <h3>登录后推荐更懂你的笔记</h3>
+            <div class="qr-placeholder">
+                <i class="fas fa-qrcode" style="font-size: 80px; color: #ccc;"></i>
+            </div>
+            <p>可用 <span style="color: var(--primary-red); font-weight: bold;">小红书</span> App 扫码</p>
+        </div>
+
+        <div class="modal-right">
+            <div class="modal-tabs">
+                <span class="modal-tab active" onclick="switchTab('login')">账号登录</span>
+                <span class="modal-tab" onclick="switchTab('register')">新用户注册</span>
+            </div>
+
+            <div id="login-form">
+                <div class="input-group">
+                    <input type="text" id="login-username" placeholder="输入用户名">
+                </div>
+                <div class="input-group">
+                    <input type="password" id="login-password" placeholder="输入密码">
+                </div>
+                <button class="submit-btn" onclick="handleLogin()">登录</button>
+            </div>
+
+            <div id="register-form" style="display: none;">
+                <div class="input-group">
+                    <input type="text" id="reg-username" placeholder="设置用户名">
+                </div>
+                <div class="input-group">
+                    <input type="password" id="reg-password" placeholder="设置密码">
+                </div>
+                <button class="submit-btn" onclick="handleRegister()">注册</button>
+            </div>
+
+            <div id="msg-box" class="message"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 关闭弹窗
+    function closeModal() {
+        document.getElementById('login-modal').style.display = 'none';
+    }
+
+    // 切换登录/注册 Tab
+    function switchTab(type) {
+        document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+        if (type === 'login') {
+            document.querySelectorAll('.modal-tab')[0].classList.add('active');
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('register-form').style.display = 'none';
+        } else {
+            document.querySelectorAll('.modal-tab')[1].classList.add('active');
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('register-form').style.display = 'block';
+        }
+        document.getElementById('msg-box').style.display = 'none';
+    }
+
+    function showMsg(msg) {
+        const box = document.getElementById('msg-box');
+        box.innerText = msg;
+        box.style.display = 'block';
+    }
+
+    // 处理注册
+    async function handleRegister() {
+        const username = document.getElementById('reg-username').value;
+        const password = document.getElementById('reg-password').value;
+        if (!username || !password) return showMsg("用户名或密码不能为空");
+
+        const res = await fetch('/api/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password})
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert("注册成功，请直接登录！");
+            switchTab('login'); // 自动切回登录页面
+        } else {
+            showMsg(data.error || "注册失败");
+        }
+    }
+
+    // 处理登录
+    async function handleLogin() {
+        const username = document.getElementById('login-username').value;
+        const password = document.getElementById('login-password').value;
+        if (!username || !password) return showMsg("用户名或密码不能为空");
+
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password})
+        });
+        const data = await res.json();
+        if (res.ok) {
+            // 登录成功，刷新当前页面，因为有了 Cookie，后端不会再传 NeedsLogin=true
+            window.location.reload();
+        } else {
+            showMsg(data.error || "登录失败");
+        }
+    }
+
+    function checkLogin(e, uid) {
+        if (!uid) {
+            e.preventDefault();
+            document.getElementById('login-modal').style.display = 'flex';
+        }
+    }
+</script>
 
 </body>
 </html>

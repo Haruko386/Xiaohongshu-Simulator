@@ -2,6 +2,7 @@ package main
 
 import (
 	"Xiaohongshu_Simulator/models"
+	"Xiaohongshu_Simulator/views"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -35,15 +36,33 @@ func initRoutes(r *gin.Engine) {
 
 		Posts = append(Posts, post1, post2)
 
+		needsLogin := false
+		loggedInUserID := ""
+		cookieID, err := c.Cookie("user_id")
+		if err != nil {
+			needsLogin = true
+		} else {
+			loggedInUserID = cookieID
+		}
+
 		c.HTML(http.StatusOK, "index.tmpl", gin.H{
-			"Posts": Posts,
+			"Posts":          Posts,
+			"NeedsLogin":     needsLogin,
+			"LoggedInUserID": loggedInUserID,
 		})
 	})
+
+	api := r.Group("/api")
+	{
+		api.POST("/register", views.UserRegister)
+		api.POST("/login", views.UserLogin)
+		api.POST("/user/update", views.UpdateUserProfile)
+	}
 
 	user := r.Group("/user")
 	{
 		user.GET("/profile/:id", func(c *gin.Context) {
-			c.Param("id")
+			targetID := c.Param("id")
 
 			var User models.User
 			var Posts []models.Post
@@ -54,12 +73,21 @@ func initRoutes(r *gin.Engine) {
 				})
 				return
 			}
-
 			models.DB.Where("user_id = ? and deleted = ?", User.ID, false).Order("created_at desc").Find(&Posts)
 
+			loggedInUserID := ""
+			cookieID, err := c.Cookie("user_id")
+			if err == nil {
+				loggedInUserID = cookieID
+			}
+
+			isOwner := loggedInUserID == targetID
+
 			c.HTML(http.StatusOK, "profile.tmpl", gin.H{
-				"User":  User,
-				"Posts": Posts,
+				"User":           User,
+				"Posts":          Posts,
+				"IsOwner":        isOwner,
+				"LoggedInUserID": loggedInUserID,
 			})
 		})
 	}

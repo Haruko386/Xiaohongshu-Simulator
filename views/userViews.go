@@ -1,0 +1,111 @@
+package views
+
+import (
+	"Xiaohongshu_Simulator/models"
+	"fmt"
+	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
+	"net/http"
+)
+
+type UserReq struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+func UserRegister(c *gin.Context) {
+	var req UserReq
+	// 解析json
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	// 查看是否已存在用户
+	var existUser models.User
+	if err := models.DB.Where("username = ?", req.Username).First(&existUser).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "用户已存在"})
+		return
+	}
+
+	hashPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "加密失败"})
+		return
+	}
+
+	newUser := models.User{
+		Username: req.Username,
+		Password: string(hashPassword),
+		Avatar:   "default.png",
+	}
+
+	if err := models.DB.Create(&newUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "注册失败，数据库错误"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "注册成功"})
+}
+
+func UserLogin(c *gin.Context) {
+	var req UserReq
+	// 获取请求
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	// 去数据库找人
+	var user models.User
+	if err := models.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户不存在"})
+		return
+	}
+
+	// 校验密码
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "密码错误"})
+		return
+	}
+
+	// 这里是判断是否登录的，可以用cookie，也可以用JWT Token
+	c.SetCookie("user_id", fmt.Sprint(user.ID), 3600, "/", "", false, true)
+
+	c.JSON(http.StatusOK, gin.H{
+		"user_id": user.ID,
+		"message": "登录成功",
+	})
+}
+
+type UserUpdateReq struct {
+	Signature string `json:"signature"`
+	Gender    string `json:"gender"`
+	Region    string `json:"region"`
+}
+
+func UpdateUserProfile(c *gin.Context) {
+	// 验证登录状态
+	userIDStr, err := c.Cookie("user_id")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+		return
+	}
+
+	var req UserUpdateReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	if err := models.DB.Model(&models.User{}).Where("id = ?", userIDStr).Updates(models.User{
+		Signature: req.Signature,
+		Gender:    req.Gender,
+		Region:    req.Region,
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "更新成功"})
+}

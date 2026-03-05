@@ -224,7 +224,7 @@
         <a href="/" class="nav-item">发现</a>
         <a href="#" class="nav-item">发布</a>
         <a href="#" class="nav-item">通知</a>
-        <a href="/user/profile/{{.User.ID}}" class="nav-item" style="font-weight: bold; color: var(--primary-red);">我</a>
+        <a href="/user/profile/{{.LoggedInUserID}}" class="nav-item" style="font-weight: bold; color: var(--primary-red);">我</a>
     </nav>
 </aside>
 
@@ -243,6 +243,10 @@
             <div class="user-bio">
                 {{ if .User.Signature }}{{ .User.Signature }}{{ else }}这个人很懒，什么都没写{{ end }}
             </div>
+
+            {{ if .IsOwner }}
+                <button onclick="openEditModal()" style="padding: 6px 16px; border-radius: 20px; border: 1px solid #ccc; background: white; cursor: pointer; margin-bottom: 10px;">编辑资料</button>
+            {{ end }}
 
             <div class="user-tags">
                 <span class="tag">{{ if .User.Gender }}{{.User.Gender}}{{ else }}未知{{ end }}</span>
@@ -290,6 +294,50 @@
         </div>
     {{ end }}
 </main>
+
+<div id="edit-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: #fff; width: 400px; padding: 30px; border-radius: 12px; position: relative;">
+        <span onclick="closeEditModal()" style="position: absolute; right: 20px; top: 15px; cursor: pointer; color: #999;"><i class="fas fa-times"></i></span>
+        <h3 style="margin-bottom: 20px; text-align: center;">编辑个人资料</h3>
+
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; font-size: 14px; margin-bottom: 5px;">性别</label>
+            <input type="text" id="edit-gender" value="{{.User.Gender}}" style="width: 100%; padding: 10px; border: 1px solid #eee; border-radius: 8px; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; font-size: 14px; margin-bottom: 5px;">地区</label>
+            <input type="text" id="edit-region" value="{{.User.Region}}" style="width: 100%; padding: 10px; border: 1px solid #eee; border-radius: 8px; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; font-size: 14px; margin-bottom: 5px;">个性签名</label>
+            <input type="text" id="edit-signature" value="{{.User.Signature}}" style="width: 100%; padding: 10px; border: 1px solid #eee; border-radius: 8px; box-sizing: border-box;">
+        </div>
+        <button onclick="submitEdit()" style="width: 100%; background: var(--primary-red); color: white; border: none; padding: 12px; border-radius: 24px; cursor: pointer; font-weight: bold;">保存</button>
+    </div>
+</div>
+
+<script>
+    function openEditModal() { document.getElementById('edit-modal').style.display = 'flex'; }
+    function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
+
+    async function submitEdit() {
+        const gender = document.getElementById('edit-gender').value;
+        const region = document.getElementById('edit-region').value;
+        const signature = document.getElementById('edit-signature').value;
+
+        const res = await fetch('/api/user/update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({gender, region, signature})
+        });
+
+        if (res.ok) {
+            window.location.reload(); // 更新成功后刷新页面以显示最新数据
+        } else {
+            alert("更新失败");
+        }
+    }
+</script>
 
 </body>
 </html>
