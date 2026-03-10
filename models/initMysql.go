@@ -32,7 +32,7 @@ type User struct {
 type Post struct {
 	gorm.Model
 	Title      string     `gorm:"type:varchar(255)" json:"title"`
-	Text       string     `gorm:"type:varchar(255)" json:"text"`
+	Text       string     `gorm:"type:text" json:"text"`
 	CoverImage string     `gorm:"type:varchar(255)" json:"cover_image"`
 	Visible    bool       `gorm:"type:bool;default:true" json:"visible"`
 	PublicDate *time.Time `gorm:"type:date" json:"public_date"`
@@ -40,4 +40,5 @@ type Post struct {
 	Deleted    bool       `gorm:"type:bool;default:false" json:"deleted"`
 
 	UserID uint `json:"user_id"`
+	User   User `json:"user" gorm:"foreignkey:UserID" json:"user"`
 }

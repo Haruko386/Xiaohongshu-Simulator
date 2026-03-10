@@ -13,9 +13,10 @@
     <div class="logo">小红书</div>
     <nav>
         <a href="#" class="nav-item active"><i class="fas fa-compass"></i> 发现</a>
-        <a href="#" class="nav-item"><i class="fas fa-plus-square"></i> 发布</a>
+        <a href="#" class="nav-item" onclick="openPublishModal()"><i class="fas fa-plus-square"></i> 发布</a>
         <a href="#" class="nav-item"><i class="fas fa-bell"></i> 通知</a>
-        <a href="/user/profile/{{.LoggedInUserID}}" class="nav-item" onclick="checkLogin(event, '{{.LoggedInUserID}}')"><i class="fas fa-user"></i> 我</a>
+        <a href="/user/profile/{{.LoggedInUserID}}" class="nav-item" onclick="checkLogin(event, '{{.LoggedInUserID}}')"><i
+                    class="fas fa-user"></i> 我</a>
     </nav>
 </aside>
 
@@ -43,17 +44,22 @@
     <div class="waterfall-container">
         {{ range .Posts }}
             <div class="card">
-                <img src="{{ .CoverImage }}" alt="{{ .Title }}" class="card-img">
+
+                <img src="/asset/{{ .User.Username }}/Posts/{{ .ID }}/{{ .CoverImage }}" alt="{{ .Title }}"
+                     class="card-img">
+
                 <div class="card-info">
                     <div class="card-title">{{ .Title }}</div>
                     <div class="card-meta">
                         <div class="user-info">
-                            <div class="avatar"></div>
-                            <span>用户名称</span>
+                            <img style="max-width: 20px; max-height: 20px; border-radius: 50%" src="/asset/{{ .User.Username }}/{{ .User.Avatar }}">
+                        </div>
+                        <div class="user-info">
+                            <span style="display: flex; align-items: flex-start;">{{ .User.Username }}</span>
                         </div>
                         <div class="likes">
                             <i class="far fa-heart"></i>
-                            <span>123</span>
+                            <span>0</span>
                         </div>
                     </div>
                 </div>
@@ -106,8 +112,75 @@
     </div>
 </div>
 
+<div id="publish-modal" class="modal-overlay" style="display: none;">
+    <div class="edit-modal-content" style="width: 500px;"><span class="close-btn" onclick="closePublishModal()"><i
+                    class="fas fa-times"></i></span>
+        <h3 style="text-align: center; margin-bottom: 20px;">发布新笔记</h3>
+
+        <div style="margin-bottom: 15px; text-align: center;">
+            <label for="post-cover"
+                   style="display: block; cursor: pointer; border: 2px dashed #ccc; padding: 30px; border-radius: 8px;">
+                <img id="post-cover-preview" src=""
+                     style="max-width: 100%; max-height: 200px; display: none; margin: 0 auto;">
+                <span id="post-cover-text"><i class="fas fa-camera"></i> 点击上传封面（必选）</span>
+            </label>
+            <input type="file" id="post-cover" accept="image/*" style="display: none;"
+                   onchange="previewPostCover(event)">
+        </div>
+
+        <div class="input-group" style="margin-bottom: 15px;">
+            <input type="text" id="post-title" placeholder="填写标题"
+                   style="width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 8px;">
+        </div>
+
+        <div class="input-group" style="margin-bottom: 15px;">
+            <textarea id="post-text" placeholder="在这里写入 Markdown 格式的正文..." rows="6"
+                      style="width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 8px; resize: none;"></textarea>
+        </div>
+
+        <button class="submit-btn" onclick="submitPost()">立即发布</button>
+    </div>
+</div>
+
 <script>
-    // 关闭弹窗
+    function openPublishModal() { document.getElementById('publish-modal').style.display = 'flex'; }
+    function closePublishModal() { document.getElementById('publish-modal').style.display = 'none'; }
+
+    function previewPostCover(event) {
+        const file = event.target.files[0];
+        if (file) {
+            document.getElementById('post-cover-preview').src = URL.createObjectURL(file);
+            document.getElementById('post-cover-preview').style.display = 'block';
+            document.getElementById('post-cover-text').style.display = 'none';
+        }
+    }
+
+    async function submitPost() {
+        const coverFile = document.getElementById('post-cover').files[0];
+        const title = document.getElementById('post-title').value;
+        const text = document.getElementById('post-text').value;
+
+        if (!coverFile) return alert("必须上传封面图！");
+        if (!title) return alert("请填写标题！");
+
+        const formData = new FormData();
+        formData.append("cover", coverFile);
+        formData.append("title", title);
+        formData.append("text", text);
+
+        try {
+            const res = await fetch('/api/post/create', { method: 'POST', body: formData });
+            if (res.ok) {
+                window.location.reload(); // 发布成功，刷新看首页瀑布流！
+            } else {
+                const data = await res.json();
+                alert(data.error || "发布失败");
+            }
+        } catch (err) {
+            alert("网络错误");
+        }
+    }
+
     function closeModal() {
         document.getElementById('login-modal').style.display = 'none';
     }

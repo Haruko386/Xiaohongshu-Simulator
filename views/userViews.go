@@ -6,6 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"time"
 )
 
 type UserReq struct {
@@ -92,18 +95,51 @@ func UpdateUserProfile(c *gin.Context) {
 		return
 	}
 
-	var req UserUpdateReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+	var user models.User
+	if err := models.DB.First(&user, userIDStr).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 		return
 	}
 
-	if err := models.DB.Model(&models.User{}).Where("id = ?", userIDStr).Updates(models.User{
-		Signature: req.Signature,
-		Gender:    req.Gender,
-		Region:    req.Region,
-	}).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新失败"})
+	gender := c.PostForm("gender")
+	region := c.PostForm("region")
+	signature := c.PostForm("signature")
+	birthdayStr := c.PostForm("birthday")
+
+	var birthday *time.Time
+	if birthdayStr != "" {
+		parsedTime, err := time.Parse("2006-01-02", birthdayStr)
+		if err == nil {
+			birthday = &parsedTime
+		}
+	}
+
+	file, err := c.FormFile("avatar")
+	if err == nil {
+		userDir := fmt.Sprintf("./assets/%s", user.Username)
+
+		if err := os.MkdirAll(userDir, 0755); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建用户文件夹失败"})
+			return
+		}
+		// 保存路径
+		savePath := filepath.Join(userDir, file.Filename)
+
+		if err := c.SaveUploadedFile(file, savePath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "头像上传失败"})
+			return
+		}
+
+		user.Avatar = file.Filename
+	}
+
+	user.Gender = gender
+	user.Region = region
+	user.Signature = signature
+	user.Birthday = birthday
+
+	if err := models.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户信息更新失败"})
 		return
 	}
 

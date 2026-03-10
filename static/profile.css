@@ -1,104 +1,144 @@
-:root {
-    --primary-red: #ff2442;
-    --text-main: #333;
-    --text-sec: #666;
-    --bg-gray: #f8f8f8;
-}
-
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background-color: #fff;
-    margin: 0;
-    display: flex;
-    height: 100vh;
-}
-
-/* 侧边栏 (复用之前的样式，简化版) */
-.sidebar {
-    width: 240px;
-    padding: 20px;
-    border-right: 1px solid #eee;
-    flex-shrink: 0;
-}
-.logo { color: var(--primary-red); font-size: 28px; font-weight: bold; margin-bottom: 30px; }
-.nav-item { display: block; padding: 10px; color: #333; text-decoration: none; margin-bottom: 5px; border-radius: 20px;}
-.nav-item:hover { background: #f5f5f5; }
-
-/* 主内容区 */
+/* --- 个人主页独有样式 --- */
 .main-container {
     flex: 1;
     overflow-y: auto;
     padding: 0;
+    background: #fff;
 }
 
-/* --- 用户信息头部 User Header --- */
 .user-header {
-    padding: 40px 20px;
+    padding: 60px 20px 40px;
     display: flex;
-    justify-content: center;
-    align-items: center;
-    max-width: 900px;
+    justify-content: flex-start; /* 整体靠左对齐 */
+    align-items: flex-start;
+    max-width: 850px;
     margin: 0 auto;
+    gap: 40px; /* 缩小头像和右侧文字的间距 */
 }
 
 .user-avatar {
-    width: 120px;
-    height: 120px;
+    width: 160px;
+    height: 160px;
     border-radius: 50%;
-    border: 1px solid #eee;
-    margin-right: 40px;
+    border: 1px solid #f0f0f0;
     object-fit: cover;
     flex-shrink: 0;
 }
 
 .user-info {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* 强制内部所有元素左对齐 */
+    padding-top: 10px;
+    width: 100%;
+}
+
+.user-name-row {
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between; /* 用户名在左，编辑按钮在右 */
+    align-items: center;
+    width: 100%; /* 占满整个右侧区域 */
 }
 
 .user-name {
-    font-size: 24px;
+    font-size: 32px;
     font-weight: 600;
-    margin-bottom: 10px;
+    color: #333;
+    margin: 0;
+}
+
+.user-meta {
+    font-size: 13px;
+    color: #999;
+    margin-bottom: 8px;
     display: flex;
     align-items: center;
+}
+
+.user-meta span::after {
+    content: '|';
+    margin: 0 12px;
+    color: #e5e5e5;
+}
+
+.user-meta span:last-child::after {
+    display: none;
 }
 
 .xhs-id {
     font-size: 12px;
     color: #999;
     margin-left: 10px;
+    font-weight: normal;
 }
 
 .user-bio {
-    font-size: 14px;
-    color: var(--text-sec);
-    margin-bottom: 15px;
-    line-height: 1.5;
+    font-size: 15px;
+    color: #333;
+    margin-bottom: 16px;
+    line-height: 1.6;
 }
 
 .user-tags {
     display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 8px;
+    margin-bottom: 24px;
 }
 
 .tag {
-    background: #f5f5f5;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
+    background: #f8f8f8;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
     color: #666;
+}
+
+.user-stats-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
 }
 
 .user-stats {
     display: flex;
-    gap: 20px;
-    font-size: 16px;
+    gap: 24px;
 }
-.stat-num { font-weight: bold; margin-right: 4px; }
-.stat-label { color: #666; font-size: 14px; }
 
-/* --- Tab 切换栏 --- */
+.stat-item {
+    font-size: 14px;
+    color: #666;
+}
+
+.stat-num {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-right: 5px;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 14px;
+}
+
+.btn-edit-profile {
+    padding: 8px 24px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    transition: all 0.2s;
+}
+
+.btn-edit-profile:hover {
+    background: #f8f8f8;
+}
+
 .tabs {
     display: flex;
     justify-content: center;
@@ -107,8 +147,9 @@ body {
     margin-bottom: 20px;
     position: sticky;
     top: 0;
-    background: #fff;
+    background: rgba(255, 255, 255, 0.95);
     z-index: 10;
+    backdrop-filter: blur(4px);
 }
 
 .tab-item {
@@ -124,7 +165,6 @@ body {
     font-weight: 600;
 }
 
-/* 选中下划线 */
 .tab-item.active::after {
     content: '';
     position: absolute;
@@ -132,11 +172,11 @@ body {
     left: 50%;
     transform: translateX(-50%);
     width: 20px;
-    height: 2px;
+    height: 3px;
     background: var(--primary-red);
+    border-radius: 2px;
 }
 
-/* --- 瀑布流 Grid --- */
 .posts-grid {
     column-count: 4;
     column-gap: 20px;
@@ -145,21 +185,32 @@ body {
     padding: 20px;
 }
 
-@media (max-width: 1200px) { .posts-grid { column-count: 3; } }
-@media (max-width: 800px) { .posts-grid { column-count: 2; } }
+@media (max-width: 1200px) {
+    .posts-grid {
+        column-count: 3;
+    }
+}
+
+@media (max-width: 800px) {
+    .posts-grid {
+        column-count: 2;
+    }
+}
 
 .post-card {
     break-inside: avoid;
     margin-bottom: 20px;
-    border-radius: 12px; /* 小红书风格的大圆角 */
+    border-radius: 12px;
     overflow: hidden;
     background: #fff;
-    /* 只有鼠标悬停时才显示阴影 */
+    border: 1px solid #f0f0f0;
     transition: all 0.2s;
+    cursor: pointer;
 }
 
 .post-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
 }
 
 .cover-img {
@@ -170,7 +221,7 @@ body {
 }
 
 .card-footer {
-    padding: 10px;
+    padding: 12px;
 }
 
 .post-title {
@@ -197,12 +248,107 @@ body {
     align-items: center;
     gap: 5px;
 }
+
 .avatar-mini {
-    width: 20px; height: 20px; border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid #eee;
 }
 
 .empty-state {
     text-align: center;
-    padding: 50px;
+    padding: 80px 0;
     color: #999;
+    font-size: 14px;
+}
+
+/* 编辑资料弹窗独有样式 */
+.edit-modal-content {
+    background: #fff;
+    width: 420px;
+    padding: 30px 40px;
+    border-radius: 16px;
+    position: relative;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.edit-modal-header {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 25px;
+    color: #333;
+}
+
+.avatar-upload-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.avatar-preview-wrap {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    cursor: pointer;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 1px solid #eee;
+}
+
+.avatar-preview-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-preview-wrap .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.avatar-preview-wrap:hover .overlay {
+    opacity: 1;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.form-group input, .form-group select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 14px;
+    outline: none;
+    transition: border 0.2s;
+    background: #fafafa;
+}
+
+.form-group input:focus, .form-group select:focus {
+    border-color: var(--primary-red);
+    background: #fff;
 }
