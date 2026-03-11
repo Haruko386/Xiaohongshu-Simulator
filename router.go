@@ -33,12 +33,31 @@ func initRoutes(r *gin.Engine) {
 		})
 	})
 
+	// 发布页面路由
+	r.GET("/publish", func(c *gin.Context) {
+		loggedInUserID := ""
+
+		// 登录验证
+		cookieID, err := c.Cookie("user_id")
+		if err != nil { // 未登录则返回主页登录
+			c.Redirect(http.StatusFound, "/")
+			return
+		}
+		loggedInUserID = cookieID
+
+		c.HTML(http.StatusOK, "publish.tmpl", gin.H{"LoggedInUserID": loggedInUserID})
+	})
+
 	api := r.Group("/api")
 	{
 		api.POST("/register", views.UserRegister)
 		api.POST("/login", views.UserLogin)
+		api.POST("/logout", views.UserLogout)
 		api.POST("/user/update", views.UpdateUserProfile)
 		api.POST("/post/create", views.CreatePost)
+		api.GET("/post/detail", views.GetPost)
+		api.POST("/post/like", views.ToggleLike)
+		api.POST("/post/collect", views.ToggleCollect)
 	}
 
 	user := r.Group("/user")

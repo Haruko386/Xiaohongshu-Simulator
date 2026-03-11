@@ -81,6 +81,13 @@ func UserLogin(c *gin.Context) {
 	})
 }
 
+func UserLogout(c *gin.Context) {
+	// 清空cookie
+	c.SetCookie("user_id", "", -1, "/", "", false, true)
+	// 返回值
+	c.JSON(http.StatusOK, gin.H{"message": "已退出登录"})
+}
+
 type UserUpdateReq struct {
 	Signature string `json:"signature"`
 	Gender    string `json:"gender"`

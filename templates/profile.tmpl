@@ -14,10 +14,22 @@
     <div class="logo">小红书</div>
     <nav>
         <a href="/" class="nav-item"><i class="fas fa-compass"></i> 发现</a>
-        <a href="#" class="nav-item"><i class="fas fa-plus-square"></i> 发布</a>
+        <a href="/publish" class="nav-item"><i class="fas fa-plus-square"></i> 发布</a>
         <a href="#" class="nav-item"><i class="fas fa-bell"></i> 通知</a>
         <a href="/user/profile/{{.LoggedInUserID}}" class="nav-item active"><i class="fas fa-user"></i> 我</a>
     </nav>
+
+    <div class="more-container">
+        <div class="more-menu" id="more-menu">
+            <div class="menu-item">关于小红书</div>
+            <div class="menu-item">帮助与客服</div>
+            <div class="menu-divider"></div>
+            <div class="menu-item" onclick="handleLogout()">退出登录</div>
+        </div>
+        <div class="more-btn" onclick="toggleMoreMenu(event)">
+            <i class="fas fa-bars"></i> 更多
+        </div>
+    </div>
 </aside>
 
 <main class="main-container">
@@ -34,7 +46,7 @@
 
             <div class="user-meta">
                 <span>小红书号：{{ .User.ID }}</span>
-                <span>IP属地：{{ if .User.Region }}{{ .User.Region }}{{ else }}未知{{ end }}</span>
+                <span>属地：{{ if .User.Region }}{{ .User.Region }}{{ else }}未知{{ end }}</span>
             </div>
 
             <div class="user-bio">
@@ -65,7 +77,7 @@
     {{ if .Posts }}
         <div class="posts-grid">
             {{ range .Posts }}
-                <div class="post-card">
+                <div class="post-card" onclick="openPostDetail('{{ .ID }}')">
                     <img src="/asset/{{ $.User.Username }}/Posts/{{ .ID }}/{{ .CoverImage }}" class="cover-img"
                          alt="{{ .Title }}">
                     <div class="card-footer">
@@ -131,7 +143,62 @@
     </div>
 </div>
 
+<div id="post-detail-modal" class="post-detail-overlay" style="display: none;">
+    <div class="post-detail-box">
+        <div class="post-detail-left">
+            <div class="close-detail-btn" onclick="closePostDetail()"><i class="fas fa-times"></i></div>
+            <img id="detail-image" src="" alt="笔记封面">
+        </div>
+
+        <div class="post-detail-right">
+            <div class="detail-header">
+                <div class="detail-author">
+                    <img id="detail-avatar" src="/asset/{{ .User.Username }}/{{ .User.Avatar }}" onerror="this.src='https://via.placeholder.com/40'">
+                    <span id="detail-username">加载中...</span>
+                </div>
+                <button class="btn-follow">关注</button>
+            </div>
+
+            <div class="detail-scroll">
+                <div id="detail-title" class="detail-title">加载中...</div>
+                <div id="detail-text" class="detail-text">加载中...</div>
+                <div id="detail-time" class="detail-time">发布时间</div>
+
+                <hr style="border: 0; border-top: 1px solid #f0f0f0; margin: 20px 0;">
+
+                <div class="comment-count">共 1 条评论</div>
+                <div class="mock-comment">
+                    <img src="https://via.placeholder.com/32">
+                    <div class="mock-comment-content">
+                        <div class="name">占位符</div>
+                        <div class="text">占位评论：？？？？</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-footer">
+                <input type="text" class="comment-input" placeholder="说点什么...">
+                <div class="interaction-icons">
+                    <div class="action-btn" id="btn-like" onclick="toggleLike()">
+                        <i id="icon-like" class="far fa-heart"></i>
+                        <span id="count-like">0</span>
+                    </div>
+                    <div class="action-btn" id="btn-collect" onclick="toggleCollect()">
+                        <i id="icon-collect" class="far fa-star"></i>
+                        <span id="count-collect">0</span>
+                    </div>
+                    <div class="action-btn">
+                        <i class="fas fa-share"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    let currentPostId = null
+
     function openEditModal() {
         document.getElementById('edit-modal').style.display = 'flex';
     }
@@ -169,6 +236,152 @@
         } catch (err) {
             alert("网络错误");
         }
+    }
+
+    function toggleMoreMenu(e) {
+        e.stopPropagation(); // 阻止点击事件冒泡，防止触发下面的全局关闭
+        document.getElementById('more-menu').classList.toggle('show');
+    }
+
+    // 监听全局点击事件，点击空白处自动关闭菜单
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('more-menu');
+        if (menu && menu.classList.contains('show')) {
+            menu.classList.remove('show');
+        }
+    });
+
+    // 处理退出登录
+    async function handleLogout() {
+        try {
+            const res = await fetch('/api/logout', { method: 'POST' });
+            if (res.ok) {
+                // 登出成功后，强制跳转回首页，首页检测不到 Cookie 会自动弹出登录框
+                window.location.href = "/";
+            } else {
+                alert("退出失败，请重试");
+            }
+        } catch (err) {
+            alert("网络请求错误");
+        }
+    }
+
+    async function openPostDetail(postId) {
+        // 先显示弹窗框架
+        document.getElementById('post-detail-modal').style.display = 'flex';
+
+        try {
+            const res = await fetch(`/api/post/detail?id=${postId}`);
+            if (res.ok) {
+                const data = await res.json();
+                currentPostId = postId;
+
+                document.getElementById('detail-image').src = `/asset/${data.user.username}/Posts/${data.post.ID}/${data.post.cover_image}`;
+                document.getElementById('detail-avatar').src = `/asset/${data.user.username}/${data.user.avatar}`;
+                document.getElementById('detail-username').innerText = data.user.username;
+                document.getElementById('detail-title').innerText = data.post.title;
+                document.getElementById('detail-text').innerText = data.post.text;
+                document.getElementById('count-like').innerText = data.like_count || 0;
+                document.getElementById('count-collect').innerText = data.collect_count || 0;
+
+                const btnLike = document.getElementById('btn-like');
+                const iconLike = document.getElementById('icon-like');
+
+                if (data.is_liked) {
+                    btnLike.classList.add('liked');
+                    iconLike.className = 'fas fa-heart';
+                } else {
+                    btnLike.classList.remove('liked');
+                    iconLike.className = 'far fa-heart';
+                }
+                const btnCollect = document.getElementById('btn-collect');
+                const iconCollect = document.getElementById('icon-collect');
+                if (data.is_collected) {
+                    btnCollect.classList.add('collected');
+                    iconCollect.className = 'fas fa-star';
+                } else {
+                    btnCollect.classList.remove('collected');
+                    iconCollect.className = 'far fa-star';
+                }
+
+                // 格式化时间 (截取 YYYY-MM-DD)
+                const dateStr = data.post.public_date ? data.post.public_date.split('T')[0] : "未知时间";
+                document.getElementById('detail-time').innerText = dateStr;
+            } else {
+                alert("获取笔记详情失败");
+                closePostDetail();
+            }
+        } catch (err) {
+            console.error(err);
+            alert("网络错误");
+        }
+    }
+
+    function closePostDetail() {
+        document.getElementById('post-detail-modal').style.display = 'none';
+        // 清空内容，防止下次点开看到上一次残影
+        document.getElementById('detail-image').src = "";
+        document.getElementById('detail-title').innerText = "加载中...";
+        document.getElementById('detail-text').innerText = "加载中...";
+    }
+
+    async function toggleLike() {
+        if (!currentPostId) return;
+        try {
+            // 将发往你马上要写的后端接口
+            const res = await fetch('/api/post/like', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ post_id: Number(currentPostId) })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // 动态更新UI
+                const btnLike = document.getElementById('btn-like');
+                const iconLike = document.getElementById('icon-like');
+                document.getElementById('count-like').innerText = data.like_count;
+
+                if (data.is_liked) {
+                    btnLike.classList.add('liked');
+                    iconLike.className = 'fas fa-heart';
+                } else {
+                    btnLike.classList.remove('liked');
+                    iconLike.className = 'far fa-heart';
+                }
+            } else {
+                alert("操作失败，请先登录！");
+            }
+        } catch (err) { alert("网络请求错误"); }
+    }
+
+    // 收藏交互 (逻辑与点赞高度一致)
+    async function toggleCollect() {
+        if (!currentPostId) return;
+        try {
+            const res = await fetch('/api/post/collect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ post_id: Number(currentPostId) })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                const btnCollect = document.getElementById('btn-collect');
+                const iconCollect = document.getElementById('icon-collect');
+                document.getElementById('count-collect').innerText = data.collect_count;
+
+                if (data.is_collected) {
+                    btnCollect.classList.add('collected');
+                    iconCollect.className = 'fas fa-star';
+                } else {
+                    btnCollect.classList.remove('collected');
+                    iconCollect.className = 'far fa-star';
+                }
+            } else {
+                alert("操作失败，请先登录！");
+            }
+        } catch (err) { alert("网络请求错误"); }
     }
 </script>
 

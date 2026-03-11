@@ -24,8 +24,9 @@ func main() {
 			panic(err)
 		}
 	}(models.DB)
+
 	//迁移
-	models.DB.AutoMigrate(&models.User{}, &models.Post{})
+	models.DB.AutoMigrate(&models.User{}, &models.Post{}, &models.Like{}, &models.Collection{})
 
 	// 初始化路由
 	initRoutes(r)

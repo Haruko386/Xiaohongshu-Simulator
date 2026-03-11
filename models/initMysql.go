@@ -42,3 +42,15 @@ type Post struct {
 	UserID uint `json:"user_id"`
 	User   User `json:"user" gorm:"foreignkey:UserID" json:"user"`
 }
+
+type Like struct {
+	gorm.Model
+	UserID uint `json:"user_id"`
+	PostID uint `json:"post_id"`
+}
+
+type Collection struct {
+	gorm.Model
+	UserID uint `json:"user_id"`
+	PostID uint `json:"post_id"`
+}

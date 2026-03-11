@@ -1,4 +1,3 @@
-/* --- 个人主页独有样式 --- */
 .main-container {
     flex: 1;
     overflow-y: auto;
@@ -9,11 +8,11 @@
 .user-header {
     padding: 60px 20px 40px;
     display: flex;
-    justify-content: flex-start; /* 整体靠左对齐 */
+    justify-content: flex-start;
     align-items: flex-start;
     max-width: 850px;
     margin: 0 auto;
-    gap: 40px; /* 缩小头像和右侧文字的间距 */
+    gap: 40px;
 }
 
 .user-avatar {
@@ -29,7 +28,7 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* 强制内部所有元素左对齐 */
+    align-items: flex-start;
     padding-top: 10px;
     width: 100%;
 }
@@ -37,9 +36,9 @@
 .user-name-row {
     margin-bottom: 6px;
     display: flex;
-    justify-content: space-between; /* 用户名在左，编辑按钮在右 */
+    justify-content: space-between;
     align-items: center;
-    width: 100%; /* 占满整个右侧区域 */
+    width: 100%;
 }
 
 .user-name {
