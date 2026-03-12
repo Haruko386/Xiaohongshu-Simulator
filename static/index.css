@@ -633,27 +633,43 @@ body {
     font-size: 14px;
 }
 
+/* --- 底部互动区：点赞与收藏 --- */
 .interaction-icons {
     display: flex;
-    gap: 15px;
+    gap: 20px;
     color: #333;
-    font-size: 22px;
-    cursor: pointer;
+    align-items: center;
 }
 
-.interaction-icons {
-    display: flex; gap: 20px; color: #333; align-items: center;
-}
 .action-btn {
-    display: flex; align-items: center; gap: 6px; cursor: pointer;
-    transition: all 0.2s; user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
 }
-.action-btn i { font-size: 22px; transition: transform 0.2s; }
-.action-btn span { font-size: 15px; font-weight: 500; }
+
+.action-btn i {
+    font-size: 22px;
+    transition: transform 0.2s;
+}
+
+.action-btn span {
+    font-size: 15px;
+    font-weight: 500;
+}
 
 /* 鼠标悬停动画 */
-.action-btn:hover i { transform: scale(1.1); }
+.action-btn:hover i {
+    transform: scale(1.1);
+}
 
 /* 激活状态：点赞为红色，收藏为黄色 */
-.action-btn.liked { color: var(--primary-red); }
-.action-btn.collected { color: #fbc02d; }
+.action-btn.liked {
+    color: var(--primary-red);
+}
+
+.action-btn.collected {
+    color: #fbc02d;
+}

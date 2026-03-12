@@ -81,8 +81,8 @@ func GetPost(c *gin.Context) {
 	}
 
 	var likeCount, collectCount int
-	models.DB.Model(&post).Count(&likeCount)
-	models.DB.Model(&post).Count(&collectCount)
+	models.DB.Model(&models.Like{}).Where("post_id = ?", postIDStr).Count(&likeCount)
+	models.DB.Model(&models.Collection{}).Where("post_id = ?", postIDStr).Count(&collectCount)
 
 	isLiked := false
 	isCollected := false
@@ -97,7 +97,7 @@ func GetPost(c *gin.Context) {
 			isLiked = true
 		}
 
-		var tempCollected models.Like
+		var tempCollected models.Collection
 		if models.DB.Where("user_id = ? AND post_id = ?", user.ID, post.ID).First(&tempCollected).Error == nil {
 			isCollected = true
 		}
@@ -142,7 +142,7 @@ func ToggleLike(c *gin.Context) {
 	err = models.DB.Where("user_id = ? AND post_id = ?", userIDStr, req.PostID).First(&like).Error
 	if err == nil {
 		// 记录存在，则正面以前点过赞，现在需要取消点赞，则删掉
-		models.DB.Delete(&like)
+		models.DB.Delete(&like).Unscoped()
 		isLiked = false
 	} else {
 		// 记录不存在，则以前未点赞，现在加入
@@ -189,8 +189,8 @@ func ToggleCollect(c *gin.Context) {
 	// 查询收藏库里是否同时存在帖子与用户的对应
 	err = models.DB.Where("user_id = ? AND post_id = ?", userIDStr, req.PostID).First(&collect).Error
 	if err == nil {
-		models.DB.Delete(&collect)
-		isCollect = true
+		models.DB.Delete(&collect).Unscoped()
+		isCollect = false
 	} else {
 		var user models.User
 		models.DB.First(&user, userIDStr)

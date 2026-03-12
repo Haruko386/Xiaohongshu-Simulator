@@ -168,7 +168,7 @@
 
                 <div class="comment-count">共 1 条评论</div>
                 <div class="mock-comment">
-                    <img src="https://via.placeholder.com/32">
+                    <img src="/asset/{{ .User.Username }}/{{ .User.Avatar }}">
                     <div class="mock-comment-content">
                         <div class="name">占位符</div>
                         <div class="text">占位评论：？？？？</div>
@@ -286,7 +286,6 @@
 
                 const btnLike = document.getElementById('btn-like');
                 const iconLike = document.getElementById('icon-like');
-
                 if (data.is_liked) {
                     btnLike.classList.add('liked');
                     iconLike.className = 'fas fa-heart';
@@ -294,6 +293,8 @@
                     btnLike.classList.remove('liked');
                     iconLike.className = 'far fa-heart';
                 }
+
+                // 根据是否已收藏，切换 class
                 const btnCollect = document.getElementById('btn-collect');
                 const iconCollect = document.getElementById('icon-collect');
                 if (data.is_collected) {
