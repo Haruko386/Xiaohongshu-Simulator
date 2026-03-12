@@ -10,13 +10,14 @@ import (
 func initRoutes(r *gin.Engine) {
 	// 首页
 	r.GET("", func(c *gin.Context) {
+		// 获取帖子列表
 		var Posts []models.Post
-
 		if err := models.DB.Preload("User").Where("visible = ? and deleted = ?", true, false).Order("created_at desc").Find(&Posts).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取数据失败"})
 			return
 		}
 
+		//是否登录逻辑的判断(这个需要删吗，有下面的逻辑的话)
 		needsLogin := false
 		loggedInUserID := ""
 		cookieID, err := c.Cookie("user_id")
@@ -24,6 +25,29 @@ func initRoutes(r *gin.Engine) {
 			needsLogin = true
 		} else {
 			loggedInUserID = cookieID
+		}
+		// 不报错不管就完事了
+		var currentUser models.User
+		if cookieID, err := c.Cookie("user_id"); err == nil {
+			needsLogin = false
+			loggedInUserID = cookieID
+			models.DB.First(&currentUser, loggedInUserID)
+		} else {
+			needsLogin = true
+		}
+
+		for i := range Posts {
+			var count int
+			models.DB.Model(&models.Like{}).Where("post_id = ?", Posts[i].ID).Count(&count)
+			Posts[i].LikeCount = count
+
+			// 判断登录了的用户有没有点赞
+			if currentUser.ID != 0 {
+				var like models.Like
+				if err := models.DB.Where("user_id = ? AND post_id = ?", currentUser.ID, Posts[i].ID).First(&like).Error; err == nil {
+					Posts[i].IsLiked = true
+				}
+			}
 		}
 
 		c.HTML(http.StatusOK, "index.tmpl", gin.H{
@@ -84,6 +108,26 @@ func initRoutes(r *gin.Engine) {
 			}
 
 			isOwner := loggedInUserID == targetID
+
+			var currentUser models.User
+			if cookieID, err := c.Cookie("user_id"); err == nil {
+				loggedInUserID = cookieID
+				models.DB.First(&currentUser, loggedInUserID)
+			}
+
+			for i := range Posts {
+				var count int
+				models.DB.Model(&Posts[i]).Count(&count)
+				Posts[i].LikeCount = count
+
+				// 判断登录了的用户有没有点赞
+				if currentUser.ID != 0 {
+					var like models.Like
+					if err := models.DB.Where("user_id = ? AND post_id = ?", currentUser.ID, Posts[i].ID).First(&like).Error; err == nil {
+						Posts[i].IsLiked = true
+					}
+				}
+			}
 
 			c.HTML(http.StatusOK, "profile.tmpl", gin.H{
 				"User":           User,

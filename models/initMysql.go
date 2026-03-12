@@ -41,6 +41,9 @@ type Post struct {
 
 	UserID uint `json:"user_id"`
 	User   User `json:"user" gorm:"foreignkey:UserID" json:"user"`
+
+	LikeCount int  `gorm:"-" json:"like_count"` //不写入数据库，只写给前端看的 `gorm:"-"`
+	IsLiked   bool `gorm:"-" json:"is_liked"`
 }
 
 type Like struct {

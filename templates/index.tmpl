@@ -57,8 +57,9 @@
                             <span style="display: flex; align-items: flex-start;">{{ .User.Username }}</span>
                         </div>
                         <div class="likes">
-                            <i class="far fa-heart"></i>
-                            <span>0</span>
+                            <i class="{{ if .IsLiked }}fas fa-heart{{ else }}far fa-heart{{ end }}"
+                               {{ if .IsLiked }}style="color: var(--primary-red);"{{ end }}></i>
+                            <span>{{ .LikeCount }}</span>
                         </div>
                     </div>
                 </div>

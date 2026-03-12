@@ -176,9 +176,10 @@
                     <span onclick="submitComment()" style="color: var(--primary-red); font-weight: bold; cursor: pointer; white-space: nowrap; font-size: 14px;">发送</span>
                 </div>
                 <div class="interaction-icons" style="margin-left: 15px;">
-                    <div class="action-btn" id="btn-like" onclick="toggleLike()">
-                        <i id="icon-like" class="far fa-heart"></i>
-                        <span id="count-like">0</span>
+                    <div>
+                        <i class="{{ if .IsLiked }}fas fa-heart{{ else }}far fa-heart{{ end }}"
+                           {{ if .IsLiked }}style="color: var(--primary-red);"{{ end }}></i>
+                        {{ .LikeCount }}
                     </div>
                     <div class="action-btn" id="btn-collect" onclick="toggleCollect()">
                         <i id="icon-collect" class="far fa-star"></i>
