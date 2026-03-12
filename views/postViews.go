@@ -73,10 +73,18 @@ func GetPost(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "获取的笔记无效"})
 		return
 	}
+
 	// 获取到我们要查询的笔记
 	var post models.Post
 	if err := models.DB.Preload("User").First(&post, postIDStr).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "帖子不存在于数据库中"})
+		return
+	}
+
+	//获取评论列表
+	var comments []models.Comment // 按时间顺序获取
+	if err := models.DB.Preload("User").Where("post_id = ?", postIDStr).Order("created_at desc").Find(&comments).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "获取评论列表失败"})
 		return
 	}
 
@@ -111,6 +119,7 @@ func GetPost(c *gin.Context) {
 		"collect_count": collectCount,
 		"is_liked":      isLiked,
 		"is_collected":  isCollected,
+		"comments":      comments,
 	})
 }
 
@@ -142,7 +151,7 @@ func ToggleLike(c *gin.Context) {
 	err = models.DB.Where("user_id = ? AND post_id = ?", userIDStr, req.PostID).First(&like).Error
 	if err == nil {
 		// 记录存在，则正面以前点过赞，现在需要取消点赞，则删掉
-		models.DB.Delete(&like).Unscoped()
+		models.DB.Unscoped().Delete(&like)
 		isLiked = false
 	} else {
 		// 记录不存在，则以前未点赞，现在加入
@@ -189,7 +198,7 @@ func ToggleCollect(c *gin.Context) {
 	// 查询收藏库里是否同时存在帖子与用户的对应
 	err = models.DB.Where("user_id = ? AND post_id = ?", userIDStr, req.PostID).First(&collect).Error
 	if err == nil {
-		models.DB.Delete(&collect).Unscoped()
+		models.DB.Unscoped().Delete(&collect)
 		isCollect = false
 	} else {
 		var user models.User
@@ -207,7 +216,7 @@ func ToggleCollect(c *gin.Context) {
 	models.DB.Model(&models.Collection{}).Where("post_id = ?", req.PostID).Count(&collectCount)
 
 	c.JSON(http.StatusOK, gin.H{
-		"is_collect":    isCollect,
+		"is_collected":  isCollect,
 		"collect_count": collectCount,
 	})
 }

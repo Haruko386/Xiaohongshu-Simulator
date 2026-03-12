@@ -58,6 +58,7 @@ func initRoutes(r *gin.Engine) {
 		api.GET("/post/detail", views.GetPost)
 		api.POST("/post/like", views.ToggleLike)
 		api.POST("/post/collect", views.ToggleCollect)
+		api.POST("/post/comment", views.CreateComment)
 	}
 
 	user := r.Group("/user")

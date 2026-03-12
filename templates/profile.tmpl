@@ -166,19 +166,16 @@
 
                 <hr style="border: 0; border-top: 1px solid #f0f0f0; margin: 20px 0;">
 
-                <div class="comment-count">共 1 条评论</div>
-                <div class="mock-comment">
-                    <img src="/asset/{{ .User.Username }}/{{ .User.Avatar }}">
-                    <div class="mock-comment-content">
-                        <div class="name">占位符</div>
-                        <div class="text">占位评论：？？？？</div>
-                    </div>
-                </div>
+                <div id="comment-count-label" class="comment-count">共 0 条评论</div>
+                <div id="detail-comments-list" style="padding-bottom: 20px;"></div>
             </div>
 
             <div class="detail-footer">
-                <input type="text" class="comment-input" placeholder="说点什么...">
-                <div class="interaction-icons">
+                <div style="flex: 1; display: flex; align-items: center; background: #f5f5f5; border-radius: 24px; padding-right: 15px;">
+                    <input type="text" id="comment-input" class="comment-input" placeholder="说点什么..." style="flex: 1; background: transparent; padding-right: 5px;">
+                    <span onclick="submitComment()" style="color: var(--primary-red); font-weight: bold; cursor: pointer; white-space: nowrap; font-size: 14px;">发送</span>
+                </div>
+                <div class="interaction-icons" style="margin-left: 15px;">
                     <div class="action-btn" id="btn-like" onclick="toggleLike()">
                         <i id="icon-like" class="far fa-heart"></i>
                         <span id="count-like">0</span>
@@ -308,6 +305,29 @@
                 // 格式化时间 (截取 YYYY-MM-DD)
                 const dateStr = data.post.public_date ? data.post.public_date.split('T')[0] : "未知时间";
                 document.getElementById('detail-time').innerText = dateStr;
+
+                const commentsList = document.getElementById('detail-comments-list');
+                commentsList.innerHTML = "";
+                const comments = data.comments || [];
+                document.getElementById('comment-count-label').innerText = `共 ${comments.length} 条评论`;
+                comments.forEach(c => {
+                    // gorm.Model 的时间字段序列化后默认叫 CreatedAt
+                    const dateStr = c.CreatedAt ? c.CreatedAt.split('T')[0] : "刚刚";
+                    const avatarPath = `/asset/${c.user.username}/${c.user.avatar}`;
+
+                    commentsList.innerHTML += `
+                        <div class="mock-comment">
+                            <img src="${avatarPath}" onerror="this.onerror=null; this.src='https://via.placeholder.com/32'">
+                            <div class="mock-comment-content" style="flex: 1;">
+                                <div class="name" style="color: #666; font-size: 13px; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                                    <span>${c.user.username}</span>
+                                    <span style="color: #999; font-size: 12px;">${dateStr}</span>
+                                </div>
+                                <div class="text" style="color: #333; font-size: 14px; line-height: 1.5;">${c.text}</div>
+                            </div>
+                        </div>
+                    `;
+                });
             } else {
                 alert("获取笔记详情失败");
                 closePostDetail();
@@ -383,6 +403,34 @@
                 alert("操作失败，请先登录！");
             }
         } catch (err) { alert("网络请求错误"); }
+    }
+
+    async function submitComment() {
+        if (!currentPostId) return;
+        const input = document.getElementById('comment-input');
+        const text = input.value.trim();
+
+        if (!text) return alert("评论内容不能为空！");
+
+        try {
+            // 发给后端新增的评论接口
+            const res = await fetch('/api/post/comment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ post_id: Number(currentPostId), text: text })
+            });
+
+            if (res.ok) {
+                input.value = ""; // 清空输入框
+                // 评论成功后，直接重新调用该函数刷新一遍详情页的数据，实现无缝显示新评论
+                openPostDetail(currentPostId);
+            } else {
+                const data = await res.json();
+                alert(data.error || "评论失败，请先登录！");
+            }
+        } catch (err) {
+            alert("网络请求错误");
+        }
     }
 </script>
 

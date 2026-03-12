@@ -54,3 +54,14 @@ type Collection struct {
 	UserID uint `json:"user_id"`
 	PostID uint `json:"post_id"`
 }
+
+type Comment struct {
+	gorm.Model
+	Text string `gorm:"type:text" json:"text"`
+
+	PostID uint `gorm:"index" json:"post_id"`
+	Post   Post `json:"post" gorm:"foreignkey:PostID"`
+
+	UserID uint `gorm:"index" json:"user_id"`
+	User   User `json:"user" gorm:"foreignkey:UserID"`
+}
