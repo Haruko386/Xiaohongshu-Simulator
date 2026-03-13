@@ -203,6 +203,9 @@
 
 <script>
     let currentPostId = null
+    let currentReplyParentId = 0;
+    let currentReplyToName = "";
+    let currentPostAuthorId = 0;
 
     function openEditModal() {
         document.getElementById('edit-modal').style.display = 'flex';
@@ -313,39 +316,74 @@
                 const dateStr = data.post.public_date ? data.post.public_date.split('T')[0] : "未知时间";
                 document.getElementById('detail-time').innerText = dateStr;
 
+                // === 替换开始：动态渲染楼中楼评论 ===
                 const commentsList = document.getElementById('detail-comments-list');
                 commentsList.innerHTML = "";
                 const comments = data.comments || [];
                 document.getElementById('comment-count-label').innerText = `共 ${comments.length} 条评论`;
-                comments.forEach(c => {
+
+                currentPostAuthorId = data.post.user_id; // 获取文章作者ID
+
+                // 辅助函数：渲染单条评论的 HTML
+                function renderCommentHTML(c, isSub, threadId) {
                     const dateStr = c.CreatedAt ? c.CreatedAt.split('T')[0] : "刚刚";
                     const avatarPath = `/asset/${c.user.username}/${c.user.avatar}`;
-
-                    // 💡 新增：判断这层楼是否被当前用户点赞，以此决定红心的样式
                     const likeIconClass = c.is_liked ? 'fas fa-heart' : 'far fa-heart';
                     const likeColor = c.is_liked ? 'color: var(--primary-red);' : 'color: #999;';
 
-                    commentsList.innerHTML += `
-                        <div class="mock-comment">
-                            <img src="${avatarPath}" onerror="this.onerror=null; this.src='https://via.placeholder.com/32'">
+                    // 💡 如果是回复的回复，加上高亮的 @ 前缀
+                    let textHtml = c.text;
+                    if (isSub && c.reply_to) {
+                        textHtml = `<span>回复 <span style="color: #5c7c9c;">@${c.reply_to}</span>: </span>${c.text}`;
+                    }
+
+                    // 判断是否是楼主（作者）
+                    const authorTag = c.user_id === currentPostAuthorId ?
+                        '<span style="background:#f0f0f0; color:#999; font-size:10px; padding:2px 6px; border-radius:10px; margin-left:6px;">作者</span>' : '';
+
+                    // threadId 是顶级评论的 ID
+                    const clickParentId = isSub ? threadId : c.ID;
+
+                    return `
+                        <div class="mock-comment" style="margin-bottom: ${isSub ? '15px' : '20px'};">
+                            <img src="${avatarPath}" style="width: ${isSub ? '24px' : '32px'}; height: ${isSub ? '24px' : '32px'}; border-radius: 50%;" onerror="this.onerror=null; this.src='https://via.placeholder.com/32'">
                             <div class="mock-comment-content" style="flex: 1;">
                                 <div class="name" style="color: #666; font-size: 13px; margin-bottom: 4px; display: flex; justify-content: space-between;">
-                                    <span>${c.user.username}</span>
+                                    <span>${c.user.username}${authorTag}</span>
                                     <span style="color: #999; font-size: 12px;">${dateStr}</span>
                                 </div>
-                                <div class="text" style="color: #333; font-size: 14px; line-height: 1.5;">${c.text}</div>
+                                <div class="text" style="color: #333; font-size: 14px; line-height: 1.5;">${textHtml}</div>
 
                                 <div style="display: flex; align-items: center; gap: 20px; margin-top: 8px; font-size: 12px; color: #999;">
                                     <div style="cursor: pointer; display: flex; align-items: center; gap: 4px;" onclick="toggleCommentLike(${c.ID})">
                                         <i id="comment-like-icon-${c.ID}" class="${likeIconClass}" style="${likeColor} font-size: 13px; transition: transform 0.2s;"></i>
                                         <span id="comment-like-count-${c.ID}">${c.like_count || 0}</span>
                                     </div>
-                                    <div style="cursor: pointer; font-weight: 500;">回复</div>
+                                    <div style="cursor: pointer; font-weight: 500;" onclick="prepareReply(${clickParentId}, '${c.user.username}', ${isSub})">回复</div>
                                 </div>
                             </div>
                         </div>
                     `;
+                }
+
+                // 💡 分组算法：挑出所有一级评论
+                const topComments = comments.filter(c => !c.parent_id || c.parent_id === 0);
+                topComments.forEach(tc => {
+                    let html = renderCommentHTML(tc, false, tc.ID);
+
+                    // 挑出属于这个一级评论的所有子评论（楼中楼）
+                    const subComments = comments.filter(c => c.parent_id === tc.ID);
+                    if (subComments.length > 0) {
+                        html += `<div style="margin-left: 42px; margin-bottom: 20px; padding: 10px 15px; background: #f9f9f9; border-radius: 8px;">`;
+                        // 这里反转一下数组，让旧回复在上，新回复在下，更符合阅读习惯
+                        subComments.reverse().forEach(sc => {
+                            html += renderCommentHTML(sc, true, tc.ID);
+                        });
+                        html += `</div>`;
+                    }
+                    commentsList.innerHTML += html;
                 });
+                // === 替换结束 ===
             } else {
                 alert("获取笔记详情失败");
                 closePostDetail();
@@ -423,6 +461,17 @@
         } catch (err) { alert("网络请求错误"); }
     }
 
+    window.prepareReply = function(parentId, targetName, isSub) {
+        currentReplyParentId = parentId;
+        // 如果回复的是二级评论，我们才加上 @ 他的名字
+        currentReplyToName = isSub ? targetName : "";
+
+        const input = document.getElementById('comment-input');
+        input.placeholder = `回复 @${targetName} :`;
+        input.focus();
+    };
+
+    // 💡 升级：提交评论时带上楼中楼关系
     async function submitComment() {
         if (!currentPostId) return;
         const input = document.getElementById('comment-input');
@@ -431,17 +480,24 @@
         if (!text) return alert("评论内容不能为空！");
 
         try {
-            // 发给后端新增的评论接口
             const res = await fetch('/api/post/comment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ post_id: Number(currentPostId), text: text })
+                body: JSON.stringify({
+                    post_id: Number(currentPostId),
+                    text: text,
+                    parent_id: currentReplyParentId,   // 传给后端：归属哪个大楼
+                    reply_to: currentReplyToName       // 传给后端：@了谁
+                })
             });
 
             if (res.ok) {
-                input.value = ""; // 清空输入框
-                // 评论成功后，直接重新调用该函数刷新一遍详情页的数据，实现无缝显示新评论
-                openPostDetail(currentPostId);
+                input.value = "";
+                input.placeholder = "说点什么..."; // 恢复默认占位符
+                currentReplyParentId = 0;          // 清除回复状态
+                currentReplyToName = "";
+
+                openPostDetail(currentPostId);     // 刷新评论区
             } else {
                 const data = await res.json();
                 alert(data.error || "评论失败，请先登录！");

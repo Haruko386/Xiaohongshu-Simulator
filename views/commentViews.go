@@ -7,8 +7,10 @@ import (
 )
 
 type commentReq struct {
-	PostID uint   `json:"post_id"`
-	Text   string `json:"text"`
+	PostID   uint   `json:"post_id"`
+	Text     string `json:"text"`
+	ParentID uint   `json:"parent_id"`
+	ReplyTo  string `json:"reple_to"`
 }
 
 func CreateComment(c *gin.Context) {
@@ -41,11 +43,13 @@ func CreateComment(c *gin.Context) {
 
 	// 准备创建数据项并保存
 	newComment := models.Comment{
-		Text:   req.Text,
-		PostID: req.PostID,
-		Post:   post,
-		User:   user,
-		UserID: user.ID,
+		Text:     req.Text,
+		PostID:   req.PostID,
+		Post:     post,
+		User:     user,
+		UserID:   user.ID,
+		ParentID: req.ParentID,
+		ReplyTo:  req.ReplyTo,
 	}
 
 	if err := models.DB.Create(&newComment).Error; err != nil {
@@ -57,7 +61,7 @@ func CreateComment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "评论成功"})
 }
 
-type CommentReq struct {
+type CommentLikeReq struct {
 	CommentID uint `json:"comment_id"`
 }
 
@@ -69,7 +73,7 @@ func ToggleCommentLike(c *gin.Context) {
 		return
 	}
 
-	var req CommentReq
+	var req CommentLikeReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
 		return

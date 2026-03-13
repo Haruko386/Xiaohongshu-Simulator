@@ -70,6 +70,10 @@ type Comment struct {
 
 	LikeCount int  `gorm:"-" json:"like_count"`
 	IsLiked   bool `gorm:"-" json:"is_liked"`
+
+	// 楼中楼评论
+	ParentID uint   `json:"parent_id"`
+	ReplyTo  string `json:"reply_to"`
 }
 
 type CommentLike struct {
