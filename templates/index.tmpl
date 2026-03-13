@@ -343,9 +343,12 @@
                 const comments = data.comments || [];
                 document.getElementById('comment-count-label').innerText = `共 ${comments.length} 条评论`;
                 comments.forEach(c => {
-                    // gorm.Model 的时间字段序列化后默认叫 CreatedAt
                     const dateStr = c.CreatedAt ? c.CreatedAt.split('T')[0] : "刚刚";
                     const avatarPath = `/asset/${c.user.username}/${c.user.avatar}`;
+
+                    // 💡 新增：判断这层楼是否被当前用户点赞，以此决定红心的样式
+                    const likeIconClass = c.is_liked ? 'fas fa-heart' : 'far fa-heart';
+                    const likeColor = c.is_liked ? 'color: var(--primary-red);' : 'color: #999;';
 
                     commentsList.innerHTML += `
                         <div class="mock-comment">
@@ -356,6 +359,14 @@
                                     <span style="color: #999; font-size: 12px;">${dateStr}</span>
                                 </div>
                                 <div class="text" style="color: #333; font-size: 14px; line-height: 1.5;">${c.text}</div>
+
+                                <div style="display: flex; align-items: center; gap: 20px; margin-top: 8px; font-size: 12px; color: #999;">
+                                    <div style="cursor: pointer; display: flex; align-items: center; gap: 4px;" onclick="toggleCommentLike(${c.ID})">
+                                        <i id="comment-like-icon-${c.ID}" class="${likeIconClass}" style="${likeColor} font-size: 13px; transition: transform 0.2s;"></i>
+                                        <span id="comment-like-count-${c.ID}">${c.like_count || 0}</span>
+                                    </div>
+                                    <div style="cursor: pointer; font-weight: 500;">回复</div>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -459,6 +470,38 @@
             } else {
                 const data = await res.json();
                 alert(data.error || "评论失败，请先登录！");
+            }
+        } catch (err) {
+            alert("网络请求错误");
+        }
+    }
+
+    async function toggleCommentLike(commentId) {
+        try {
+            // 发给你要写的后端新接口
+            const res = await fetch('/api/comment/like', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment_id: Number(commentId) })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+
+                // 获取对应评论的 DOM 元素进行局部刷新 (这样点赞不用重新加载整个列表)
+                const icon = document.getElementById(`comment-like-icon-${commentId}`);
+                const countSpan = document.getElementById(`comment-like-count-${commentId}`);
+
+                countSpan.innerText = data.like_count;
+                if (data.is_liked) {
+                    icon.className = 'fas fa-heart';
+                    icon.style.color = 'var(--primary-red)';
+                } else {
+                    icon.className = 'far fa-heart';
+                    icon.style.color = '#999';
+                }
+            } else {
+                alert("操作失败，请先登录！");
             }
         } catch (err) {
             alert("网络请求错误");

@@ -88,6 +88,28 @@ func GetPost(c *gin.Context) {
 		return
 	}
 
+	// 查询当前用户，用于后续验证是否点赞了
+	var user models.User
+	isLoginned := false
+	if userStrID, err := c.Cookie("user_id"); err == nil {
+		if err := models.DB.First(&user, userStrID).Error; err == nil {
+			isLoginned = true // 用户已登录
+		}
+	}
+
+	for i := range comments {
+		var count int
+		models.DB.Model(&models.CommentLike{}).Where("comment_id = ?", comments[i].ID).Count(&count)
+		comments[i].LikeCount = count
+
+		if isLoginned {
+			var commentLike models.CommentLike
+			if err := models.DB.Model(models.CommentLike{}).Where("comment_id = ? AND user_id = ?", comments[i].ID, user.ID).First(&commentLike).Error; err == nil {
+				comments[i].IsLiked = true
+			}
+		}
+	}
+
 	var likeCount, collectCount int
 	models.DB.Model(&models.Like{}).Where("post_id = ?", postIDStr).Count(&likeCount)
 	models.DB.Model(&models.Collection{}).Where("post_id = ?", postIDStr).Count(&collectCount)
@@ -95,11 +117,7 @@ func GetPost(c *gin.Context) {
 	isLiked := false
 	isCollected := false
 
-	userIDStr, err := c.Cookie("user_id")
-	if err == nil {
-		var user models.User
-		models.DB.First(&user, userIDStr)
-
+	if isLoginned {
 		var tempLike models.Like
 		if models.DB.Where("user_id = ? AND post_id = ?", user.ID, post.ID).First(&tempLike).Error == nil {
 			isLiked = true

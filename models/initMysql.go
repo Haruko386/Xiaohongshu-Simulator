@@ -67,4 +67,13 @@ type Comment struct {
 
 	UserID uint `gorm:"index" json:"user_id"`
 	User   User `json:"user" gorm:"foreignkey:UserID"`
+
+	LikeCount int  `gorm:"-" json:"like_count"`
+	IsLiked   bool `gorm:"-" json:"is_liked"`
+}
+
+type CommentLike struct {
+	gorm.Model
+	UserID    uint `json:"user_id"`
+	CommentID uint `json:"comment_id"`
 }

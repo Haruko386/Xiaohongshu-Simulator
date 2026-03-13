@@ -56,3 +56,52 @@ func CreateComment(c *gin.Context) {
 	// 评论成功
 	c.JSON(http.StatusOK, gin.H{"message": "评论成功"})
 }
+
+type CommentReq struct {
+	CommentID uint `json:"comment_id"`
+}
+
+func ToggleCommentLike(c *gin.Context) {
+	// 登录验证
+	userStrID, err := c.Cookie("user_id")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+		return
+	}
+
+	var req CommentReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	var user models.User
+	if err := models.DB.First(&user, userStrID).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户不存在"})
+		return
+	}
+
+	var commentLike models.CommentLike
+	isLiked := false
+
+	err = models.DB.Where("user_id = ? AND comment_id = ?", user.ID, req.CommentID).First(&commentLike).Error
+	if err == nil {
+		models.DB.Unscoped().Delete(&commentLike)
+		isLiked = false
+	} else {
+		newCommentLike := models.CommentLike{
+			UserID:    user.ID,
+			CommentID: req.CommentID,
+		}
+		models.DB.Create(&newCommentLike)
+		isLiked = true
+	}
+
+	var likeCount int
+	models.DB.Model(&models.CommentLike{}).Where("comment_id = ?", req.CommentID).Count(&likeCount)
+
+	c.JSON(http.StatusOK, gin.H{
+		"is_liked":   isLiked,
+		"like_count": likeCount,
+	})
+}

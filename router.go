@@ -83,6 +83,7 @@ func initRoutes(r *gin.Engine) {
 		api.POST("/post/like", views.ToggleLike)
 		api.POST("/post/collect", views.ToggleCollect)
 		api.POST("/post/comment", views.CreateComment)
+		api.POST("/comment/like", views.ToggleCommentLike)
 	}
 
 	user := r.Group("/user")
@@ -117,7 +118,7 @@ func initRoutes(r *gin.Engine) {
 
 			for i := range Posts {
 				var count int
-				models.DB.Model(&Posts[i]).Count(&count)
+				models.DB.Model(models.Like{}).Where("post_id = ?", Posts[i].ID).Count(&count)
 				Posts[i].LikeCount = count
 
 				// 判断登录了的用户有没有点赞
