@@ -198,3 +198,125 @@ func ToggleFollow(c *gin.Context) {
 		"is_following": isFollowing,
 	})
 }
+
+func GetFollowingList(c *gin.Context) {
+	userID := c.Query("user_id")
+	var Follows []models.Follow
+
+	if err := models.DB.Where("follower_id = ?", userID).Find(&Follows).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "查询错误"})
+		return
+	}
+
+	// 获取所有关注的人的ID
+	var followeeIDs []uint
+	for _, f := range Follows {
+		followeeIDs = append(followeeIDs, f.FolloweeID)
+	}
+
+	var users []models.User
+	if len(followeeIDs) > 0 {
+		models.DB.Where("id IN (?)", followeeIDs).Find(&users)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "获取列表成功",
+		"users":   users,
+	})
+}
+
+func GetFollowersList(c *gin.Context) {
+	userID := c.Query("user_id")
+	var Followers []models.Follow
+
+	if err := models.DB.Model(&models.Follow{}).Where("followee_id = ?", userID).Find(&Followers).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "查询错误"})
+		return
+	}
+
+	var followerIDs []uint
+	for _, f := range Followers {
+		followerIDs = append(followerIDs, f.FollowerID)
+	}
+
+	var users []models.User
+	if len(followerIDs) > 0 {
+		models.DB.Where("id in (?)", followerIDs).Find(&users)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "获取列表成功",
+		"users":   users,
+	})
+}
+
+func GetPostList(c *gin.Context) {
+	types, userID := c.Query("type"), c.Query("user_id")
+	var Posts []models.Post
+
+	// 获取当前登录的用户
+	var currentUser models.User
+	isLoggedIn := false
+	if cookieID, err := c.Cookie("user_id"); err == nil {
+		if models.DB.First(&currentUser, cookieID).Error == nil {
+			isLoggedIn = true
+		}
+	}
+
+	if types == "created" {
+		if err := models.DB.Preload("User").Where("visible = ? AND deleted = ? AND user_id = ?", true, false, userID).Order("created_at desc").Find(&Posts).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取数据失败"})
+			return
+		}
+	} else if types == "collected" {
+		var collections []models.Collection
+		if err := models.DB.Where("user_id = ?", userID).Find(&collections).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取数据失败"})
+			return
+		}
+
+		var postIDs []uint
+		for _, p := range collections {
+			postIDs = append(postIDs, p.PostID)
+		}
+
+		if len(postIDs) > 0 {
+			models.DB.Preload("User").Where("id IN (?)", postIDs).Order("created_at desc").Find(&Posts)
+		}
+	} else if types == "liked" {
+		var likes []models.Like
+		if err := models.DB.Where("user_id = ?", userID).Find(&likes).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取数据失败"})
+			return
+		}
+
+		var postIDs []uint
+		for _, p := range likes {
+			postIDs = append(postIDs, p.PostID)
+		}
+
+		if len(postIDs) > 0 {
+			models.DB.Preload("User").Where("id IN (?)", postIDs).Order("created_at desc").Find(&Posts)
+		}
+	}
+
+	// 点赞量之前没写
+	for i := range Posts {
+		// 点赞量
+		var count int
+		models.DB.Model(&models.Like{}).Where("post_id = ?", Posts[i].ID).Count(&count)
+		Posts[i].LikeCount = count
+
+		if isLoggedIn {
+			var like models.Like
+			if err := models.DB.Where("post_id = ? AND user_id = ?", Posts[i].ID, currentUser.ID).First(&like).Error; err == nil {
+				Posts[i].IsLiked = true
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "查询成功",
+		"posts":   Posts,
+	})
+}

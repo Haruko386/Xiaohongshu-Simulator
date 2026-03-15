@@ -64,52 +64,52 @@
                 <span class="tag">双子座</span>
             </div>
 
-            <div class="user-stats-row">
-                <div class="user-stats">
-                    <div class="stat-item"><span class="stat-num" id="stat-following">{{ .FollowingCount }}</span>关注</div>
-                    <div class="stat-item"><span class="stat-num" id="stat-follower">{{ .FollowerCount }}</span>粉丝</div>
-                    <div class="stat-item"><span class="stat-num">{{ .TotalFavorited }}</span>获赞与收藏</div>
+            <div class="user-stats">
+                <div class="stat-item" style="cursor: pointer;" onclick="openUserListModal('following', '{{.User.ID}}')">
+                    <span class="stat-num" id="stat-following">{{ .FollowingCount }}</span>关注
+                </div>
+                <div class="stat-item" style="cursor: pointer;" onclick="openUserListModal('followers', '{{.User.ID}}')">
+                    <span class="stat-num" id="stat-follower">{{ .FollowerCount }}</span>粉丝
+                </div>
+                <div class="stat-item">
+                    <span class="stat-num">{{ .TotalFavorited }}</span>获赞与收藏
                 </div>
             </div>
         </div>
     </div>
 
     <div class="tabs">
-        <div class="tab-item active">笔记</div>
-        <div class="tab-item">收藏</div>
-        <div class="tab-item">点赞</div>
+        <div class="tab-item active" onclick="switchProfileTab('created', '{{.User.ID}}', event)">笔记</div>
+        <div class="tab-item" onclick="switchProfileTab('collected', '{{.User.ID}}', event)">收藏</div>
+        <div class="tab-item" onclick="switchProfileTab('liked', '{{.User.ID}}', event)">点赞</div>
     </div>
 
-    {{ if .Posts }}
-        <div class="posts-grid">
-            {{ range .Posts }}
-                <div class="post-card" onclick="openPostDetail('{{ .ID }}')">
-                    <img src="/asset/{{ $.User.Username }}/Posts/{{ .ID }}/{{ .CoverImage }}" class="cover-img"
-                         alt="{{ .Title }}">
-                    <div class="card-footer">
-                        <div class="post-title">{{ .Title }}</div>
-                        <div class="post-meta">
-                            <div class="user-mini">
-                                <img src="/asset/{{ $.User.Username }}/{{ $.User.Avatar }}" class="avatar-mini">
-                                <span>{{ $.User.Username }}</span>
+    <div id="profile-posts-wrapper">
+        {{ if .Posts }}
+            <div class="posts-grid">
+                {{ range .Posts }}
+                    <div class="post-card" onclick="openPostDetail('{{ .ID }}')">
+                        <img src="/asset/{{ $.User.Username }}/Posts/{{ .ID }}/{{ .CoverImage }}" class="cover-img" alt="{{ .Title }}">
+                        <div class="card-footer">
+                            <div class="post-title">{{ .Title }}</div>
+                            <div class="post-meta">
+                                <div class="user-mini">
+                                    <img src="/asset/{{ $.User.Username }}/{{ $.User.Avatar }}" class="avatar-mini" onerror="this.onerror=null; this.src='https://via.placeholder.com/20'">
+                                    <span>{{ $.User.Username }}</span>
+                                </div>
+                                <div>
+                                    <i class="{{ if .IsLiked }}fas fa-heart{{ else }}far fa-heart{{ end }}" {{ if .IsLiked }}style="color: var(--primary-red);"{{ end }}></i>
+                                    {{ .LikeCount }}
+                                </div>
                             </div>
-
-                            <div>
-                                <i class="{{ if .IsLiked }}fas fa-heart{{ else }}far fa-heart{{ end }}"
-                                   {{ if .IsLiked }}style="color: var(--primary-red);"{{ end }}></i>
-                                <span>{{ .LikeCount }}</span>
-                            </div>
-
                         </div>
                     </div>
-                </div>
-            {{ end }}
-        </div>
-    {{ else }}
-        <div class="empty-state">
-            还没有发布过笔记哦 ~
-        </div>
-    {{ end }}
+                {{ end }}
+            </div>
+        {{ else }}
+            <div class="empty-state">还没有相关的笔记哦 ~</div>
+        {{ end }}
+    </div>
 </main>
 
 <div id="edit-modal" class="modal-overlay" style="display: none;">
@@ -203,6 +203,15 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<div id="user-list-modal" class="modal-overlay" style="display: none;">
+    <div class="edit-modal-content" style="width: 400px; padding: 20px;">
+        <span class="close-btn" onclick="closeUserListModal()"><i class="fas fa-times"></i></span>
+        <div class="edit-modal-header" id="user-list-title" style="margin-bottom: 15px;">用户列表</div>
+        <div id="user-list-container" style="max-height: 400px; overflow-y: auto; padding: 0 10px;">
         </div>
     </div>
 </div>
@@ -610,6 +619,94 @@
                 alert("请先登录！");
             }
         } catch (err) { alert("网络错误"); }
+    }
+
+    async function openUserListModal(type, targetUserId) {
+        document.getElementById('user-list-modal').style.display = 'flex';
+        document.getElementById('user-list-title').innerText = type === 'followers' ? '粉丝列表' : '关注列表';
+        const container = document.getElementById('user-list-container');
+        container.innerHTML = '<div style="text-align:center; padding: 30px; color:#999;">加载中...</div>';
+
+        try {
+            // 请求后端接口
+            const res = await fetch(`/api/user/${type}?user_id=${targetUserId}`);
+            if (res.ok) {
+                const data = await res.json();
+                const users = data.users || [];
+                if (users.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding: 30px; color:#999;">空空如也</div>';
+                    return;
+                }
+
+                let html = '';
+                users.forEach(u => {
+                    html += `
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding: 12px 0; border-bottom: 1px solid #f5f5f5;">
+                        <div style="display:flex; align-items:center; gap: 12px; cursor: pointer;" onclick="window.location.href='/user/profile/${u.ID}'">
+                            <img src="/asset/${u.username}/${u.avatar}" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover;" onerror="this.onerror=null; this.src='https://via.placeholder.com/44'">
+                            <span style="font-size: 15px; color: #333; font-weight: 500;">${u.username}</span>
+                        </div>
+                    </div>`;
+                });
+                container.innerHTML = html;
+            }
+        } catch(e) {
+            container.innerHTML = '<div style="text-align:center; padding: 30px; color:red;">加载失败</div>';
+        }
+    }
+
+    function closeUserListModal() { document.getElementById('user-list-modal').style.display = 'none'; }
+
+
+    // ================= 模块二：Tab 切换与动态渲染帖子 =================
+    async function switchProfileTab(type, targetUserId, event) {
+        // 1. 切换样式
+        document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+
+        // 2. 显示加载中
+        const wrapper = document.getElementById('profile-posts-wrapper');
+        wrapper.innerHTML = '<div class="empty-state">数据拉取中...</div>';
+
+        try {
+            // 请求后端接口拉取对应类型的帖子
+            const res = await fetch(`/api/post/list?type=${type}&user_id=${targetUserId}`);
+            if (res.ok) {
+                const data = await res.json();
+                const posts = data.posts || [];
+
+                if (posts.length === 0) {
+                    wrapper.innerHTML = '<div class="empty-state">还没有相关的笔记哦 ~</div>';
+                    return;
+                }
+
+                // 动态拼装瀑布流卡片 HTML
+                let html = '<div class="posts-grid">';
+                posts.forEach(p => {
+                    const likeIconClass = p.is_liked ? 'fas fa-heart' : 'far fa-heart';
+                    const likeColor = p.is_liked ? 'color: var(--primary-red);' : '';
+
+                    html += `
+                    <div class="post-card" onclick="openPostDetail('${p.ID}')">
+                        <img src="/asset/${p.user.username}/Posts/${p.ID}/${p.cover_image}" class="cover-img">
+                        <div class="card-footer">
+                            <div class="post-title">${p.title}</div>
+                            <div class="post-meta">
+                                <div class="user-mini">
+                                    <img src="/asset/${p.user.username}/${p.user.avatar}" class="avatar-mini" onerror="this.onerror=null; this.src='https://via.placeholder.com/20'">
+                                    <span>${p.user.username}</span>
+                                </div>
+                                <div><i class="${likeIconClass}" style="${likeColor}"></i> ${p.like_count || 0}</div>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                html += '</div>';
+                wrapper.innerHTML = html;
+            }
+        } catch(e) {
+            wrapper.innerHTML = '<div class="empty-state">网络出错了</div>';
+        }
     }
 </script>
 
