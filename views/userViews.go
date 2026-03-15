@@ -152,3 +152,49 @@ func UpdateUserProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "更新成功"})
 }
+
+type FollowReq struct {
+	FollowerID uint `json:"target_id"`
+}
+
+func ToggleFollow(c *gin.Context) {
+	// 获取当前登录的ID
+	userStrID, err := c.Cookie("user_id")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未登录"})
+		return
+	}
+
+	var req FollowReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	//获取用户
+	var user models.User
+	if err := models.DB.First(&user, userStrID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
+	}
+
+	var Follow models.Follow
+	isFollowing := false
+
+	if err := models.DB.Where("follower_id = ? AND followee_id = ?", user.ID, req.FollowerID).First(&Follow).Error; err != nil {
+		// 不空，则不存在关注A 2 B的关注，新建
+		newFollow := models.Follow{
+			FollowerID: user.ID,
+			FolloweeID: req.FollowerID,
+		}
+		models.DB.Create(&newFollow)
+		isFollowing = true
+	} else {
+		// 存在A 2 B的关注，取关就进行删除
+		models.DB.Unscoped().Delete(&Follow)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":      "操作成功",
+		"is_following": isFollowing,
+	})
+}

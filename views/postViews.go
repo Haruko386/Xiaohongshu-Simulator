@@ -129,6 +129,13 @@ func GetPost(c *gin.Context) {
 		}
 	}
 
+	isFollowing := false
+	if isLoginned {
+		if err := models.DB.Model(&models.Follow{}).Where("follower_id = ? AND followee_id = ?", user.ID, post.UserID).First(&models.Follow{}).Error; err == nil {
+			isFollowing = true
+		}
+	}
+
 	// 返回呗？
 	c.JSON(http.StatusOK, gin.H{
 		"post":          post,
@@ -138,6 +145,7 @@ func GetPost(c *gin.Context) {
 		"is_liked":      isLiked,
 		"is_collected":  isCollected,
 		"comments":      comments,
+		"is_following":  isFollowing,
 	})
 }
 

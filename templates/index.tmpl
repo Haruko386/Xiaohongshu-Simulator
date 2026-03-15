@@ -125,7 +125,7 @@
                     <img id="detail-avatar" src="" onerror="this.onerror=null; this.src='https://via.placeholder.com/40'">
                     <span id="detail-username">加载中...</span>
                 </div>
-                <button class="btn-follow">关注</button>
+                <button id="modal-btn-follow" class="btn-follow" onclick="toggleModalFollow()" style="display: none; transition: all 0.2s;">关注</button>
             </div>
 
             <div class="detail-scroll">
@@ -307,6 +307,27 @@
             if (res.ok) {
                 const data = await res.json(); // 解析返回的JSON
                 currentPostId = postId
+
+                const btnFollow = document.getElementById('modal-btn-follow');
+                currentPostAuthorId = data.post.user_id; // 获取作者ID
+
+                // 如果自己看自己的帖子，不显示关注按钮
+                // 注意这里需要你把 loggedInUserID 传给前端，或者后端判断如果没登录就是 ""
+                const myUserId = '{{ .LoggedInUserID }}';
+                if (String(currentPostAuthorId) === myUserId) {
+                    btnFollow.style.display = 'none';
+                } else {
+                    btnFollow.style.display = 'block';
+                    if (data.is_following) {
+                        btnFollow.innerText = "已关注";
+                        btnFollow.style.background = "#f0f0f0";
+                        btnFollow.style.color = "#999";
+                    } else {
+                        btnFollow.innerText = "关注";
+                        btnFollow.style.background = "var(--primary-red)";
+                        btnFollow.style.color = "white";
+                    }
+                }
 
                 document.getElementById('detail-image').src = `/asset/${data.user.username}/Posts/${data.post.ID}/${data.post.cover_image}`;
                 document.getElementById('detail-avatar').src = `/asset/${data.user.username}/${data.user.avatar}`;
@@ -562,6 +583,52 @@
         } catch (err) {
             alert("网络请求错误");
         }
+    }
+
+    async function toggleModalFollow() {
+        if (!currentPostAuthorId) return;
+        await sendFollowRequest(currentPostAuthorId, 'modal');
+    }
+
+    // 💡 处理个人主页大按钮的关注点击
+    async function toggleProfileFollow(targetId) {
+        await sendFollowRequest(targetId, 'profile');
+    }
+
+    // 统一发送关注请求的函数
+    async function sendFollowRequest(targetId, source) {
+        try {
+            const res = await fetch('/api/user/follow', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_id: Number(targetId) })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+
+                // 如果是在详情弹窗里点的
+                if (source === 'modal') {
+                    const btn = document.getElementById('modal-btn-follow');
+                    if (data.is_following) {
+                        btn.innerText = "已关注";
+                        btn.style.background = "#f0f0f0";
+                        btn.style.color = "#999";
+                    } else {
+                        btn.innerText = "关注";
+                        btn.style.background = "var(--primary-red)";
+                        btn.style.color = "white";
+                    }
+                }
+                // 如果是在个人主页点的
+                else if (source === 'profile') {
+                    // 刷新当前页面让各种统计数字重新计算
+                    window.location.reload();
+                }
+            } else {
+                alert("请先登录！");
+            }
+        } catch (err) { alert("网络错误"); }
     }
 </script>
 

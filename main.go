@@ -26,7 +26,7 @@ func main() {
 	}(models.DB)
 
 	//迁移
-	models.DB.AutoMigrate(&models.User{}, &models.Post{}, &models.Like{}, &models.Collection{}, &models.Comment{}, &models.CommentLike{})
+	models.DB.AutoMigrate(&models.User{}, &models.Post{}, &models.Like{}, &models.Collection{}, &models.Comment{}, &models.CommentLike{}, models.Follow{})
 
 	// 初始化路由
 	initRoutes(r)

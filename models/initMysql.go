@@ -81,3 +81,9 @@ type CommentLike struct {
 	UserID    uint `json:"user_id"`
 	CommentID uint `json:"comment_id"`
 }
+
+type Follow struct {
+	gorm.Model      // A→B A关注B
+	FollowerID uint `gorm:"index" json:"follower_id"` // “我”的ID(A)
+	FolloweeID uint `gorm:"index" json:"followee_id"` // 被关注人ID (B)
+}

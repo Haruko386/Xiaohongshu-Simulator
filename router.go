@@ -84,12 +84,13 @@ func initRoutes(r *gin.Engine) {
 		api.POST("/post/collect", views.ToggleCollect)
 		api.POST("/post/comment", views.CreateComment)
 		api.POST("/comment/like", views.ToggleCommentLike)
+		api.POST("user/follow", views.ToggleFollow)
 	}
 
 	user := r.Group("/user")
 	{
 		user.GET("/profile/:id", func(c *gin.Context) {
-			targetID := c.Param("id")
+			targetID := c.Param("id") // 这里的targetID是登录访问的个人页面的用户ID
 
 			var User models.User
 			var Posts []models.Post
@@ -116,10 +117,23 @@ func initRoutes(r *gin.Engine) {
 				models.DB.First(&currentUser, loggedInUserID)
 			}
 
+			isFollowing := false
+			if currentUser.ID != 0 { // 只有登录了才判断是否关注
+				if err := models.DB.Where("follower_id = ? AND followee_id = ?", currentUser.ID, targetID).First(&models.Follow{}).Error; err == nil {
+					isFollowing = true
+				}
+			}
+
+			totalFavorite := 0
+
 			for i := range Posts {
-				var count int
+				var count, collect int
 				models.DB.Model(models.Like{}).Where("post_id = ?", Posts[i].ID).Count(&count)
 				Posts[i].LikeCount = count
+
+				models.DB.Model(models.Collection{}).Where("post_id = ?", Posts[i].ID).Count(&collect)
+
+				totalFavorite += count + collect
 
 				// 判断登录了的用户有没有点赞
 				if currentUser.ID != 0 {
@@ -130,11 +144,20 @@ func initRoutes(r *gin.Engine) {
 				}
 			}
 
+			var followerCount, followingCount int
+
+			models.DB.Model(&models.Follow{}).Where("followee_id = ?", targetID).Count(&followerCount)
+			models.DB.Model(&models.Follow{}).Where("follower_id = ?", targetID).Count(&followingCount)
+
 			c.HTML(http.StatusOK, "profile.tmpl", gin.H{
 				"User":           User,
 				"Posts":          Posts,
 				"IsOwner":        isOwner,
 				"LoggedInUserID": loggedInUserID,
+				"FollowerCount":  followerCount,
+				"FollowingCount": followingCount,
+				"TotalFavorited": totalFavorite,
+				"IsFollowing":    isFollowing,
 			})
 		})
 	}
