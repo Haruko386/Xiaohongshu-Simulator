@@ -2,12 +2,14 @@ package views
 
 import (
 	"Xiaohongshu_Simulator/models"
+	"Xiaohongshu_Simulator/utils"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -72,8 +74,15 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
+	// 生成jwt token验证登录，不用cookie了
+	token, err := utils.GenerateToken(user.ID, user.Username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "系统生成凭证失败"})
+		return
+	}
+
 	// 这里是判断是否登录的，可以用cookie，也可以用JWT Token
-	c.SetCookie("user_id", fmt.Sprint(user.ID), 3600, "/", "", false, true)
+	c.SetCookie("token", token, 3600*24, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"user_id": user.ID,
@@ -83,7 +92,7 @@ func UserLogin(c *gin.Context) {
 
 func UserLogout(c *gin.Context) {
 	// 清空cookie
-	c.SetCookie("user_id", "", -1, "/", "", false, true)
+	c.SetCookie("token", "", -1, "/", "", false, true)
 	// 返回值
 	c.JSON(http.StatusOK, gin.H{"message": "已退出登录"})
 }
@@ -96,17 +105,9 @@ type UserUpdateReq struct {
 
 func UpdateUserProfile(c *gin.Context) {
 	// 验证登录状态
-	userIDStr, err := c.Cookie("user_id")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
-		return
-	}
-
+	userID := c.MustGet("user_id").(uint)
 	var user models.User
-	if err := models.DB.First(&user, userIDStr).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
-		return
-	}
+	models.DB.Where("user_id = ?", userID).First(&user)
 
 	gender := c.PostForm("gender")
 	region := c.PostForm("region")
@@ -159,32 +160,35 @@ type FollowReq struct {
 
 func ToggleFollow(c *gin.Context) {
 	// 获取当前登录的ID
-	userStrID, err := c.Cookie("user_id")
+	userID := c.MustGet("user_id").(uint)
+
+	targetIDStr := c.Param("id")
+	targetID, err := strconv.Atoi(targetIDStr)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未登录"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID格式错误"})
 		return
 	}
 
-	var req FollowReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+	var targetUser models.User
+	if err := models.DB.First(&targetUser, targetID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "目标用户不存在"})
 		return
 	}
 
 	//获取用户
 	var user models.User
-	if err := models.DB.First(&user, userStrID).Error; err != nil {
+	if err := models.DB.First(&user, userID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 	}
 
 	var Follow models.Follow
 	isFollowing := false
 
-	if err := models.DB.Where("follower_id = ? AND followee_id = ?", user.ID, req.FollowerID).First(&Follow).Error; err != nil {
+	if err := models.DB.Where("follower_id = ? AND followee_id = ?", user.ID, targetUser.ID).First(&Follow).Error; err != nil {
 		// 不空，则不存在关注A 2 B的关注，新建
 		newFollow := models.Follow{
 			FollowerID: user.ID,
-			FolloweeID: req.FollowerID,
+			FolloweeID: targetUser.ID,
 		}
 		models.DB.Create(&newFollow)
 		isFollowing = true
@@ -200,7 +204,7 @@ func ToggleFollow(c *gin.Context) {
 }
 
 func GetFollowingList(c *gin.Context) {
-	userID := c.Query("user_id")
+	userID := c.Param("user_id")
 	var Follows []models.Follow
 
 	if err := models.DB.Where("follower_id = ?", userID).Find(&Follows).Error; err != nil {
@@ -226,7 +230,7 @@ func GetFollowingList(c *gin.Context) {
 }
 
 func GetFollowersList(c *gin.Context) {
-	userID := c.Query("user_id")
+	userID := c.Param("user_id")
 	var Followers []models.Follow
 
 	if err := models.DB.Model(&models.Follow{}).Where("followee_id = ?", userID).Find(&Followers).Error; err != nil {
@@ -257,9 +261,11 @@ func GetPostList(c *gin.Context) {
 	// 获取当前登录的用户
 	var currentUser models.User
 	isLoggedIn := false
-	if cookieID, err := c.Cookie("user_id"); err == nil {
-		if models.DB.First(&currentUser, cookieID).Error == nil {
-			isLoggedIn = true
+	if tokenStr, err := c.Cookie("token"); err == nil {
+		if claims, err := utils.ParseToken(tokenStr); err == nil {
+			if err := models.DB.First(&currentUser, claims.UserID).Error; err == nil {
+				isLoggedIn = true
+			}
 		}
 	}
 

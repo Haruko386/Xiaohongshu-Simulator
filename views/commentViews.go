@@ -4,6 +4,7 @@ import (
 	"Xiaohongshu_Simulator/models"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
 )
 
 type commentReq struct {
@@ -14,12 +15,8 @@ type commentReq struct {
 }
 
 func CreateComment(c *gin.Context) {
-	// 先判断登录
-	userStrID, err := c.Cookie("user_id")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未登录"})
-		return
-	}
+	// 先判断登录    新的中间件之后直接不用在这里判断了，中间件判断是否登录了
+	userID := c.MustGet("user_id").(uint)
 
 	// 获取传来的评论请求
 	var req commentReq
@@ -30,7 +27,7 @@ func CreateComment(c *gin.Context) {
 
 	// 获取到了评论的帖子的ID和当前用户的ID，我们获取相关的数据项
 	var user models.User
-	if err := models.DB.First(&user, userStrID).Error; err != nil {
+	if err := models.DB.First(&user, userID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "未找到用户"})
 		return
 	}
@@ -67,11 +64,7 @@ type CommentLikeReq struct {
 
 func ToggleCommentLike(c *gin.Context) {
 	// 登录验证
-	userStrID, err := c.Cookie("user_id")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
-		return
-	}
+	userID := c.MustGet("user_id").(uint)
 
 	var req CommentLikeReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -79,8 +72,11 @@ func ToggleCommentLike(c *gin.Context) {
 		return
 	}
 
+	commentIDStr := c.Param("id")
+	commentID, _ := strconv.Atoi(commentIDStr)
+
 	var user models.User
-	if err := models.DB.First(&user, userStrID).Error; err != nil {
+	if err := models.DB.First(&user, userID).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户不存在"})
 		return
 	}
@@ -88,21 +84,21 @@ func ToggleCommentLike(c *gin.Context) {
 	var commentLike models.CommentLike
 	isLiked := false
 
-	err = models.DB.Where("user_id = ? AND comment_id = ?", user.ID, req.CommentID).First(&commentLike).Error
+	err := models.DB.Where("user_id = ? AND comment_id = ?", user.ID, uint(commentID)).First(&commentLike).Error
 	if err == nil {
 		models.DB.Unscoped().Delete(&commentLike)
 		isLiked = false
 	} else {
 		newCommentLike := models.CommentLike{
 			UserID:    user.ID,
-			CommentID: req.CommentID,
+			CommentID: uint(commentID),
 		}
 		models.DB.Create(&newCommentLike)
 		isLiked = true
 	}
 
 	var likeCount int
-	models.DB.Model(&models.CommentLike{}).Where("comment_id = ?", req.CommentID).Count(&likeCount)
+	models.DB.Model(&models.CommentLike{}).Where("comment_id = ?", uint(commentID)).Count(&likeCount)
 
 	c.JSON(http.StatusOK, gin.H{
 		"is_liked":   isLiked,

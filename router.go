@@ -1,8 +1,11 @@
 package main
 
 import (
+	"Xiaohongshu_Simulator/middleware"
 	"Xiaohongshu_Simulator/models"
+	"Xiaohongshu_Simulator/utils"
 	"Xiaohongshu_Simulator/views"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -18,22 +21,17 @@ func initRoutes(r *gin.Engine) {
 		}
 
 		//是否登录逻辑的判断(这个需要删吗，有下面的逻辑的话)
-		needsLogin := false
+		needsLogin := true
 		loggedInUserID := ""
-		cookieID, err := c.Cookie("user_id")
-		if err != nil {
-			needsLogin = true
-		} else {
-			loggedInUserID = cookieID
-		}
 		// 不报错不管就完事了
 		var currentUser models.User
-		if cookieID, err := c.Cookie("user_id"); err == nil {
-			needsLogin = false
-			loggedInUserID = cookieID
-			models.DB.First(&currentUser, loggedInUserID)
-		} else {
-			needsLogin = true
+
+		if tokenStr, err := c.Cookie("token"); err == nil {
+			if claims, err := utils.ParseToken(tokenStr); err == nil {
+				needsLogin = false
+				loggedInUserID = fmt.Sprint(claims.UserID)
+				models.DB.First(&currentUser, claims.UserID)
+			}
 		}
 
 		for i := range Posts {
@@ -62,33 +60,50 @@ func initRoutes(r *gin.Engine) {
 		loggedInUserID := ""
 
 		// 登录验证
-		cookieID, err := c.Cookie("user_id")
-		if err != nil { // 未登录则返回主页登录
+		tokenStr, err := c.Cookie("token")
+		if err == nil {
+			if claims, err := utils.ParseToken(tokenStr); err == nil {
+				loggedInUserID = fmt.Sprint(claims.UserID)
+			}
+		}
+
+		if loggedInUserID == "" {
 			c.Redirect(http.StatusFound, "/")
 			return
 		}
-		loggedInUserID = cookieID
 
 		c.HTML(http.StatusOK, "publish.tmpl", gin.H{"LoggedInUserID": loggedInUserID})
 	})
 
 	api := r.Group("/api")
 	{
-		api.POST("/register", views.UserRegister)
-		api.POST("/login", views.UserLogin)
-		api.POST("/logout", views.UserLogout)
-		api.POST("/user/update", views.UpdateUserProfile)
-		api.POST("/post/create", views.CreatePost)
-		api.GET("/post/detail", views.GetPost)
-		api.POST("/post/like", views.ToggleLike)
-		api.POST("/post/collect", views.ToggleCollect)
-		api.POST("/post/comment", views.CreateComment)
-		api.POST("/comment/like", views.ToggleCommentLike)
-		api.POST("/user/follow", views.ToggleFollow)
+		// 公共接口
+		api.POST("/auth/register", views.UserRegister)
+		api.POST("/auth/login", views.UserLogin)
 
-		api.GET("/user/following", views.GetFollowingList)
-		api.GET("/user/followers", views.GetFollowersList)
-		api.GET("/post/list", views.GetPostList)
+		api.GET("/users/:id/following", views.GetFollowingList)
+		api.GET("/users/:id/followers", views.GetFollowersList)
+
+		api.GET("/posts/:id", views.GetPost)
+		api.GET("/posts", views.GetPostList)
+
+		// 需验证的接口
+		authApi := api.Group("")
+		authApi.Use(middleware.AuthRequired()) // 挂载AuthRequired中间件
+		{
+			authApi.POST("/auth/logout", views.UserLogout)
+
+			authApi.PUT("/users/me", views.UpdateUserProfile)
+
+			authApi.POST("/users/:id/follow", views.ToggleFollow)
+
+			authApi.POST("/comments/:id/like", views.ToggleCommentLike)
+			authApi.POST("/posts", views.CreatePost)
+			authApi.POST("/posts/:id/like", views.ToggleLike)
+			authApi.POST("/posts/:id/collect", views.ToggleCollect)
+			authApi.POST("/posts/:id/comments", views.CreateComment)
+		}
+
 	}
 
 	user := r.Group("/user")
@@ -108,18 +123,15 @@ func initRoutes(r *gin.Engine) {
 			models.DB.Where("user_id = ? and deleted = ?", User.ID, false).Order("created_at desc").Find(&Posts)
 
 			loggedInUserID := ""
-			cookieID, err := c.Cookie("user_id")
-			if err == nil {
-				loggedInUserID = cookieID
-			}
-
-			isOwner := loggedInUserID == targetID
-
 			var currentUser models.User
-			if cookieID, err := c.Cookie("user_id"); err == nil {
-				loggedInUserID = cookieID
-				models.DB.First(&currentUser, loggedInUserID)
+			if tokenStr, err := c.Cookie("token"); err == nil {
+				if claims, err := utils.ParseToken(tokenStr); err == nil {
+					loggedInUserID = fmt.Sprint(claims.UserID)
+					models.DB.First(&currentUser, claims.UserID)
+				}
 			}
+
+			isOwner := (loggedInUserID != "") && (loggedInUserID == targetID)
 
 			isFollowing := false
 			if currentUser.ID != 0 { // 只有登录了才判断是否关注

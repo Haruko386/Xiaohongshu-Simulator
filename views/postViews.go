@@ -2,23 +2,21 @@ package views
 
 import (
 	"Xiaohongshu_Simulator/models"
+	"Xiaohongshu_Simulator/utils"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
 func CreatePost(c *gin.Context) {
-	userIDStr, err := c.Cookie("user_id")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"erroe": "请先登录"})
-		return
-	}
+	userID := c.MustGet("user_id").(uint)
 
 	var user models.User
-	if err := models.DB.First(&user, userIDStr).Error; err != nil {
+	if err := models.DB.First(&user, userID).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"erroe": "用户不存在"})
 		return
 	}
@@ -68,7 +66,7 @@ func CreatePost(c *gin.Context) {
 
 func GetPost(c *gin.Context) {
 	// 获取要访问的笔记的id
-	postIDStr := c.Query("id")
+	postIDStr := c.Param("id")
 	if postIDStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "获取的笔记无效"})
 		return
@@ -91,9 +89,11 @@ func GetPost(c *gin.Context) {
 	// 查询当前用户，用于后续验证是否点赞了
 	var user models.User
 	isLoginned := false
-	if userStrID, err := c.Cookie("user_id"); err == nil {
-		if err := models.DB.First(&user, userStrID).Error; err == nil {
-			isLoginned = true // 用户已登录
+	if tokenStr, err := c.Cookie("token"); err == nil {
+		if claims, err := utils.ParseToken(tokenStr); err == nil {
+			if err := models.DB.First(&user, claims.UserID).Error; err == nil {
+				isLoginned = true
+			}
 		}
 	}
 
@@ -156,25 +156,25 @@ type ActionReq struct {
 
 func ToggleLike(c *gin.Context) {
 	// 这种事情永远先检查登录
-	userIDStr, err := c.Cookie("user_id")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未登录"})
-		return
-	}
+	userID := c.MustGet("user_id").(uint)
+
+	// RESTful API ?
+	postIDStr := c.Param("id")
+	postID, _ := strconv.Atoi(postIDStr)
 
 	// 接收请求，从json来的数据则使用`ShouldBindJSON`
-	var req ActionReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
-		return
-	}
+	//var req ActionReq
+	//if err := c.ShouldBindJSON(&req); err != nil {
+	//	c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+	//	return
+	//}
 
 	// 查询是否已经点赞
 	var like models.Like
 	isLiked := false
 
 	// postID与userID同时存在则已经点过赞,现在需要取消点赞
-	err = models.DB.Where("user_id = ? AND post_id = ?", userIDStr, req.PostID).First(&like).Error
+	err := models.DB.Where("user_id = ? AND post_id = ?", userID, uint(postID)).First(&like).Error
 	if err == nil {
 		// 记录存在，则正面以前点过赞，现在需要取消点赞，则删掉
 		models.DB.Unscoped().Delete(&like)
@@ -183,18 +183,18 @@ func ToggleLike(c *gin.Context) {
 		// 记录不存在，则以前未点赞，现在加入
 
 		var user models.User
-		models.DB.First(&user, userIDStr)
+		models.DB.First(&user, userID)
 
 		newLike := models.Like{
 			UserID: user.ID,
-			PostID: req.PostID,
+			PostID: uint(postID),
 		}
 		models.DB.Create(&newLike)
 		isLiked = true
 	}
 
 	var likeCount int
-	models.DB.Model(&models.Like{}).Where("post_id = ?", req.PostID).Count(&likeCount)
+	models.DB.Model(&models.Like{}).Where("post_id = ?", uint(postID)).Count(&likeCount)
 
 	c.JSON(http.StatusOK, gin.H{
 		"is_liked":   isLiked,
@@ -204,42 +204,41 @@ func ToggleLike(c *gin.Context) {
 
 func ToggleCollect(c *gin.Context) {
 	// 判断登录
-	userIDStr, err := c.Cookie("user_id")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未登录"})
-		return
-	}
+	userID := c.MustGet("user_id").(uint)
 
 	// 接收前端数据，json
-	var req ActionReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
-		return
-	}
+	//var req ActionReq
+	//if err := c.ShouldBindJSON(&req); err != nil {
+	//	c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+	//	return
+	//}  退场，学习RESTful API中
+
+	postIDStr := c.Param("id")
+	postID, _ := strconv.Atoi(postIDStr)
 
 	// 查询是否已经收藏过
 	var collect models.Collection
 	isCollect := false
 
 	// 查询收藏库里是否同时存在帖子与用户的对应
-	err = models.DB.Where("user_id = ? AND post_id = ?", userIDStr, req.PostID).First(&collect).Error
+	err := models.DB.Where("user_id = ? AND post_id = ?", userID, uint(postID)).First(&collect).Error
 	if err == nil {
 		models.DB.Unscoped().Delete(&collect)
 		isCollect = false
 	} else {
 		var user models.User
-		models.DB.First(&user, userIDStr)
+		models.DB.First(&user, userID)
 
 		newCollect := models.Collection{
 			UserID: user.ID,
-			PostID: req.PostID,
+			PostID: uint(postID),
 		}
 		models.DB.Create(&newCollect)
 		isCollect = true
 	}
 
 	var collectCount int
-	models.DB.Model(&models.Collection{}).Where("post_id = ?", req.PostID).Count(&collectCount)
+	models.DB.Model(&models.Collection{}).Where("post_id = ?", uint(postID)).Count(&collectCount)
 
 	c.JSON(http.StatusOK, gin.H{
 		"is_collected":  isCollect,

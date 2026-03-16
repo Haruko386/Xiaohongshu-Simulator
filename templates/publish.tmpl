@@ -192,7 +192,7 @@
         formData.append("text", text);
 
         try {
-            const res = await fetch('/api/post/create', {method: 'POST', body: formData});
+            const res = await fetch('/api/posts', {method: 'POST', body: formData});
             if (res.ok) {
                 alert("发布成功！");
                 window.location.href = "/"; // 发布成功后跳转回首页
@@ -221,7 +221,7 @@
     // 处理退出登录
     async function handleLogout() {
         try {
-            const res = await fetch('/api/logout', { method: 'POST' });
+            const res = await fetch('/api/auth/logout', { method: 'POST' });
             if (res.ok) {
                 // 登出成功后，强制跳转回首页，首页检测不到 Cookie 会自动弹出登录框
                 window.location.href = "/";

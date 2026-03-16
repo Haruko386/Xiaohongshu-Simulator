@@ -80,7 +80,7 @@
         const password = document.getElementById('reg-password').value;
         if (!username || !password) return showMsg("用户名或密码不能为空");
 
-        const res = await fetch('/api/register', {
+        const res = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
@@ -100,7 +100,7 @@
         const password = document.getElementById('login-password').value;
         if (!username || !password) return showMsg("用户名或密码不能为空");
 
-        const res = await fetch('/api/login', {
+        const res = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })

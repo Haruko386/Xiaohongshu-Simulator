@@ -250,7 +250,7 @@
         }
 
         try {
-            const res = await fetch('/api/user/update', {method: 'POST', body: formData});
+            const res = await fetch('/api/users/me', {method: 'PUT', body: formData});
             if (res.ok) {
                 window.location.reload();
             } else {
@@ -293,7 +293,7 @@
         document.getElementById('post-detail-modal').style.display = 'flex';
 
         try {
-            const res = await fetch(`/api/post/detail?id=${postId}`);
+            const res = await fetch(`/api/posts/${postId}`);
             if (res.ok) {
                 const data = await res.json(); // 解析返回的JSON
                 currentPostId = postId
@@ -442,7 +442,7 @@
         if (!currentPostId) return;
         try {
             // 将发往你马上要写的后端接口
-            const res = await fetch('/api/post/like', {
+            const res = await fetch(`/api/posts/${currentPostId}/like`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ post_id: Number(currentPostId) })
@@ -472,7 +472,7 @@
     async function toggleCollect() {
         if (!currentPostId) return;
         try {
-            const res = await fetch('/api/post/collect', {
+            const res = await fetch(`/api/posts/${currentPostId}/collect`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ post_id: Number(currentPostId) })
@@ -516,7 +516,7 @@
         if (!text) return alert("评论内容不能为空！");
 
         try {
-            const res = await fetch('/api/post/comment', {
+            const res = await fetch(`/api/posts/${currentPostId}/comment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -546,7 +546,7 @@
     async function toggleCommentLike(commentId) {
         try {
             // 发给你要写的后端新接口
-            const res = await fetch('/api/comment/like', {
+            const res = await fetch(`/api/comments/${commentId}/like`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ comment_id: Number(commentId) })
@@ -588,10 +588,9 @@
     // 统一发送关注请求的函数
     async function sendFollowRequest(targetId, source) {
         try {
-            const res = await fetch('/api/user/follow', {
+            const res = await fetch(`/api/users/${targetId}/follow`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ target_id: Number(targetId) })
             });
 
             if (res.ok) {
@@ -629,7 +628,7 @@
 
         try {
             // 请求后端接口
-            const res = await fetch(`/api/user/${type}?user_id=${targetUserId}`);
+            const res = await fetch(`/api/userS/${targetUserId}/${type}`);
             if (res.ok) {
                 const data = await res.json();
                 const users = data.users || [];
@@ -670,7 +669,7 @@
 
         try {
             // 请求后端接口拉取对应类型的帖子
-            const res = await fetch(`/api/post/list?type=${type}&user_id=${targetUserId}`);
+            const res = await fetch(`/api/posts?type=${type}&user_id=${targetUserId}`);
             if (res.ok) {
                 const data = await res.json();
                 const posts = data.posts || [];
