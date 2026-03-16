@@ -15,7 +15,10 @@
     <nav>
         <a href="/" class="nav-item"><i class="fas fa-compass"></i> 发现</a>
         <a href="/publish" class="nav-item"><i class="fas fa-plus-square"></i> 发布</a>
-        <a href="#" class="nav-item"><i class="fas fa-bell"></i> 通知</a>
+        <a href="#" class="nav-item" onclick="openNotificationModal(event)">
+            <i class="fas fa-bell"></i> 通知
+            <span id="unread-badge" style="background: var(--primary-red); color: white; border-radius: 10px; padding: 0 6px; font-size: 12px; font-weight: bold; margin-left: 5px; display: none;">0</span>
+        </a>
         <a href="/user/profile/{{.LoggedInUserID}}" class="nav-item active"><i class="fas fa-user"></i> 我</a>
     </nav>
 
@@ -169,6 +172,7 @@
                     <span id="detail-username">加载中...</span>
                 </div>
                 <button id="modal-btn-follow" class="btn-follow" onclick="toggleModalFollow()" style="display: none; transition: all 0.2s;">关注</button>
+                <button id="modal-btn-delete" class="btn-follow" onclick="deletePost()" style="display: none; transition: all 0.2s; background: #ffebeb; color: var(--primary-red); border: 1px solid var(--primary-red);">删除</button>
             </div>
 
             <div class="detail-scroll">
@@ -304,10 +308,17 @@
                 // 如果自己看自己的帖子，不显示关注按钮
                 // 注意这里需要你把 loggedInUserID 传给前端，或者后端判断如果没登录就是 ""
                 const myUserId = '{{ .LoggedInUserID }}';
+                const btnDelete = document.getElementById('modal-btn-delete');
+
                 if (String(currentPostAuthorId) === myUserId) {
+                    // 看自己的帖子：隐藏关注，显示删除
                     btnFollow.style.display = 'none';
+                    btnDelete.style.display = 'block';
                 } else {
+                    // 看别人的帖子：显示关注，隐藏删除
+                    btnDelete.style.display = 'none';
                     btnFollow.style.display = 'block';
+
                     if (data.is_following) {
                         btnFollow.innerText = "已关注";
                         btnFollow.style.background = "#f0f0f0";
@@ -705,6 +716,31 @@
             }
         } catch(e) {
             wrapper.innerHTML = '<div class="empty-state">网络出错了</div>';
+        }
+    }
+
+    async function deletePost() {
+        if (!currentPostId) return;
+
+        // 增加二次确认防误触
+        if (!confirm("确定要删除这篇笔记吗？删除后将无法恢复！")) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/posts/${currentPostId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                alert("删除成功！");
+                window.location.reload(); // 简单粗暴，直接刷新页面让被删的帖子消失
+            } else {
+                const data = await res.json();
+                alert(data.error || "删除失败");
+            }
+        } catch (err) {
+            alert("网络请求错误");
         }
     }
 </script>

@@ -2,6 +2,7 @@ package views
 
 import (
 	"Xiaohongshu_Simulator/models"
+	"Xiaohongshu_Simulator/socket"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
@@ -11,7 +12,7 @@ type commentReq struct {
 	PostID   uint   `json:"post_id"`
 	Text     string `json:"text"`
 	ParentID uint   `json:"parent_id"`
-	ReplyTo  string `json:"reple_to"`
+	ReplyTo  string `json:"reply_to"`
 }
 
 func CreateComment(c *gin.Context) {
@@ -52,6 +53,33 @@ func CreateComment(c *gin.Context) {
 	if err := models.DB.Create(&newComment).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "评论失败，数据库错误"})
 		return
+	}
+
+	notifyUserID := post.UserID // 默认发给楼主
+
+	if req.ParentID != 0 {
+		var parentComment models.Comment
+		// 如果是楼中楼，查出被回复的那条评论是谁发的
+		if err := models.DB.First(&parentComment, req.ParentID).Error; err == nil {
+			notifyUserID = parentComment.UserID
+		}
+	}
+
+	// 触发通知 (条件是：不要自己给自己发通知)
+	if notifyUserID != userID {
+		newNotif := models.Notification{
+			UserID:     notifyUserID,
+			FromUserID: userID,
+			Type:       "comment",
+			TargetID:   req.PostID,
+			Content:    req.Text,
+		}
+		models.DB.Create(&newNotif)
+
+		socket.GlobalManager.SendMessage(notifyUserID, gin.H{
+			"type": "new_notification",
+			"msg":  user.Username + " 回复了你",
+		})
 	}
 
 	// 评论成功
@@ -95,6 +123,23 @@ func ToggleCommentLike(c *gin.Context) {
 		}
 		models.DB.Create(&newCommentLike)
 		isLiked = true
+
+		var comment models.Comment
+		if err := models.DB.First(&comment, commentLike.CommentID).Error; err == nil && comment.UserID != userID {
+			newNotif := models.Notification{
+				UserID:     comment.UserID,
+				FromUserID: userID,
+				Type:       "like_comment",
+				TargetID:   comment.ID,
+				Content:    "",
+			}
+			models.DB.Create(&newNotif)
+
+			socket.GlobalManager.SendMessage(comment.UserID, gin.H{
+				"type": "new_notification",
+				"msg":  user.Username + "点赞了你的评论",
+			})
+		}
 	}
 
 	var likeCount int

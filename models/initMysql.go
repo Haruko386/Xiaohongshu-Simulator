@@ -87,3 +87,14 @@ type Follow struct {
 	FollowerID uint `gorm:"index" json:"follower_id"` // “我”的ID(A)
 	FolloweeID uint `gorm:"index" json:"followee_id"` // 被关注人ID (B)
 }
+
+type Notification struct {
+	gorm.Model
+	UserID     uint   `json:"user_id"`      // 接收通知的人
+	FromUserID uint   `json:"from_user_id"` // 发送通知的人
+	FromUser   User   `json:"from_user" gorm:"foreignkey:FromUserID" json:"from_user"`
+	Type       string `gorm:"type:varchar(20)" json:"type"`     // 消息类型: "like_post", "like_comment", "comment", "follow"
+	TargetID   uint   `json:"target_id"`                        // 相关的目标ID (帖子ID或评论ID)
+	Content    string `gorm:"type:varchar(255)" json:"content"` // 评论的具体内容
+	IsRead     bool   `gorm:"default:false" json:"is_read"`     // 是否已读
+}

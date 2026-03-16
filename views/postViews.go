@@ -2,6 +2,7 @@ package views
 
 import (
 	"Xiaohongshu_Simulator/models"
+	"Xiaohongshu_Simulator/socket"
 	"Xiaohongshu_Simulator/utils"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -62,6 +63,30 @@ func CreatePost(c *gin.Context) {
 	models.DB.Model(&newPost).Update("CoverImage", file.Filename)
 
 	c.JSON(http.StatusOK, gin.H{"message": "发布成功"})
+}
+
+func DeletePost(c *gin.Context) {
+	userID := c.MustGet("user_id").(uint)
+	postID := c.Param("id")
+
+	var post models.Post
+	if err := models.DB.First(&post, postID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "要删除的帖子不存在"})
+		return
+	}
+
+	if userID != post.UserID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "没有权限"})
+		return
+	}
+
+	if err := models.DB.Model(&post).Update("deleted", true).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "删除成功",
+	})
 }
 
 func GetPost(c *gin.Context) {
@@ -191,6 +216,25 @@ func ToggleLike(c *gin.Context) {
 		}
 		models.DB.Create(&newLike)
 		isLiked = true
+
+		// 发送通知    先查询帖子是谁写的
+		var post models.Post // 第二个逻辑用于不给自己发通知
+		if err := models.DB.First(&post, postID).Error; err == nil && userID != post.UserID {
+			newNotif := models.Notification{
+				UserID:     post.UserID,
+				FromUserID: userID,
+				Type:       "like_post",
+				TargetID:   uint(postID),
+				Content:    "",
+			}
+			models.DB.Create(&newNotif)
+
+			// 呼叫 WebSocket 基站，尝试给在线的帖子作者发推送
+			socket.GlobalManager.SendMessage(post.UserID, gin.H{
+				"type": "new_notification",
+				"msg":  user.Username + "刚刚赞了你的帖子",
+			})
+		}
 	}
 
 	var likeCount int
@@ -235,6 +279,23 @@ func ToggleCollect(c *gin.Context) {
 		}
 		models.DB.Create(&newCollect)
 		isCollect = true
+
+		var post models.Post
+		if err := models.DB.First(&post, postID).Error; err == nil && userID != post.UserID {
+			newNotif := models.Notification{
+				UserID:     post.UserID,
+				FromUserID: userID,
+				Type:       "collect_post",
+				TargetID:   uint(postID),
+				Content:    "",
+			}
+			models.DB.Create(&newNotif)
+			// 发送通知
+			socket.GlobalManager.SendMessage(post.UserID, gin.H{
+				"type": "new_notification",
+				"msg":  user.Username + "收藏了你的帖子",
+			})
+		}
 	}
 
 	var collectCount int

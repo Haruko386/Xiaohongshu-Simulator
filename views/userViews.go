@@ -2,6 +2,7 @@ package views
 
 import (
 	"Xiaohongshu_Simulator/models"
+	"Xiaohongshu_Simulator/socket"
 	"Xiaohongshu_Simulator/utils"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -192,6 +193,20 @@ func ToggleFollow(c *gin.Context) {
 		}
 		models.DB.Create(&newFollow)
 		isFollowing = true
+
+		newNotif := models.Notification{
+			UserID:     targetUser.ID,
+			FromUserID: userID,
+			Type:       "follow",
+			TargetID:   targetUser.ID,
+			Content:    "",
+		}
+		models.DB.Create(&newNotif)
+
+		socket.GlobalManager.SendMessage(targetUser.ID, gin.H{
+			"type": "follow",
+			"msg":  user.Username + "关注了你",
+		})
 	} else {
 		// 存在A 2 B的关注，取关就进行删除
 		models.DB.Unscoped().Delete(&Follow)
@@ -204,7 +219,7 @@ func ToggleFollow(c *gin.Context) {
 }
 
 func GetFollowingList(c *gin.Context) {
-	userID := c.Param("user_id")
+	userID := c.Param("id")
 	var Follows []models.Follow
 
 	if err := models.DB.Where("follower_id = ?", userID).Find(&Follows).Error; err != nil {
@@ -230,7 +245,7 @@ func GetFollowingList(c *gin.Context) {
 }
 
 func GetFollowersList(c *gin.Context) {
-	userID := c.Param("user_id")
+	userID := c.Param("id")
 	var Followers []models.Follow
 
 	if err := models.DB.Model(&models.Follow{}).Where("followee_id = ?", userID).Find(&Followers).Error; err != nil {
@@ -325,4 +340,30 @@ func GetPostList(c *gin.Context) {
 		"message": "查询成功",
 		"posts":   Posts,
 	})
+}
+
+func GetNotifications(c *gin.Context) {
+	userID := c.MustGet("user_id").(uint)
+
+	var Notifications []models.Notification // Preload 预查询表中其他表的数据
+	if err := models.DB.Preload("FromUser").Where("user_id = ?", userID).Order("created_at desc").Find(&Notifications).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取通知失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"notifications": Notifications,
+	})
+}
+
+// MarkNotificationRead 标记全部消息已读
+func MarkNotificationRead(c *gin.Context) {
+	userID := c.MustGet("user_id").(uint)
+
+	if err := models.DB.Model(&models.Notification{}).Where("user_id = ? AND is_read = ?", userID, false).Update("is_read", true).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "标记已读失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "全部标记为已读"})
 }

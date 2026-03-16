@@ -99,9 +99,15 @@ func initRoutes(r *gin.Engine) {
 
 			authApi.POST("/comments/:id/like", views.ToggleCommentLike)
 			authApi.POST("/posts", views.CreatePost)
+			authApi.DELETE("/posts/:id", views.DeletePost)
 			authApi.POST("/posts/:id/like", views.ToggleLike)
 			authApi.POST("/posts/:id/collect", views.ToggleCollect)
 			authApi.POST("/posts/:id/comments", views.CreateComment)
+
+			authApi.GET("/ws", views.ConnectWS)
+			authApi.GET("/notifications", views.GetNotifications)
+
+			authApi.POST("/notifications/read", views.MarkNotificationRead)
 		}
 
 	}
