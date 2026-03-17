@@ -172,6 +172,7 @@
                     <span id="detail-username">加载中...</span>
                 </div>
                 <button id="modal-btn-follow" class="btn-follow" onclick="toggleModalFollow()" style="display: none; transition: all 0.2s;">关注</button>
+                <button id="modal-btn-edit" class="btn-follow" onclick="openEditPostModal()" style="display: none; transition: all 0.2s; background: #f5f5f5; color: #333; border: 1px solid #ddd; margin-right: 10px;">编辑</button>
                 <button id="modal-btn-delete" class="btn-follow" onclick="deletePost()" style="display: none; transition: all 0.2s; background: #ffebeb; color: var(--primary-red); border: 1px solid var(--primary-red);">删除</button>
             </div>
 
@@ -220,11 +221,36 @@
     </div>
 </div>
 
+<div id="edit-post-modal" class="modal-overlay" style="display: none; z-index: 1005;">
+    <div class="edit-modal-content" style="width: 600px; padding: 30px; border-radius: 16px; background: #fff;">
+        <span class="close-btn" onclick="closeEditPostModal()"><i class="fas fa-times"></i></span>
+        <div class="edit-modal-header" style="margin-bottom: 20px; font-size: 20px; font-weight: bold;">编辑笔记</div>
+
+        <label for="edit-post-cover" class="upload-area" style="display: block; border: 2px dashed #ddd; border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; margin-bottom: 20px;">
+            <img id="edit-post-cover-preview" src="" style="max-height: 200px; max-width: 100%; border-radius: 8px; object-fit: contain; margin: 0 auto; display: block;">
+            <div style="margin-top: 10px; color: #999; font-size: 14px;"><i class="fas fa-image"></i> 点击更换封面 (可选)</div>
+        </label>
+        <input type="file" id="edit-post-cover" accept="image/*" style="display: none;" onchange="previewEditPostCover(event)">
+        <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+            <label style="font-size: 15px; color: #333; font-weight: bold;">谁可以看：</label>
+            <select id="edit-post-visible" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #eee; outline: none; font-size: 14px; background: #fafafa;">
+                <option value="true">公开可见</option>
+                <option value="false">仅自己可见</option>
+            </select>
+        </div>
+        <input type="text" id="edit-post-title" class="publish-input" placeholder="修改标题" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #eee; border-radius: 8px; font-size: 16px; outline: none; box-sizing: border-box;">
+        <textarea id="edit-post-text" class="publish-textarea" placeholder="修改正文..." style="width: 100%; padding: 12px; height: 200px; margin-bottom: 20px; border: 1px solid #eee; border-radius: 8px; resize: vertical; font-size: 15px; outline: none; font-family: inherit; box-sizing: border-box;"></textarea>
+
+        <button class="submit-btn" style="width: 100%; padding: 14px; background: var(--primary-red); color: white; border: none; border-radius: 24px; font-size: 16px; cursor: pointer; font-weight: bold;" onclick="submitEditPost()">保存修改</button>
+    </div>
+</div>
+
 <script>
     let currentPostId = null
     let currentReplyParentId = 0;
     let currentReplyToName = "";
     let currentPostAuthorId = 0;
+    let currentPostVisible = true;
 
     function openEditModal() {
         document.getElementById('edit-modal').style.display = 'flex';
@@ -301,7 +327,7 @@
             if (res.ok) {
                 const data = await res.json(); // 解析返回的JSON
                 currentPostId = postId
-
+                currentPostVisible = data.post.visible;
                 const btnFollow = document.getElementById('modal-btn-follow');
                 currentPostAuthorId = data.post.user_id; // 获取作者ID
 
@@ -309,16 +335,17 @@
                 // 注意这里需要你把 loggedInUserID 传给前端，或者后端判断如果没登录就是 ""
                 const myUserId = '{{ .LoggedInUserID }}';
                 const btnDelete = document.getElementById('modal-btn-delete');
-
+                const btnEdit = document.getElementById('modal-btn-edit');
                 if (String(currentPostAuthorId) === myUserId) {
                     // 看自己的帖子：隐藏关注，显示删除
                     btnFollow.style.display = 'none';
                     btnDelete.style.display = 'block';
+                    btnEdit.style.display = 'block';
                 } else {
                     // 看别人的帖子：显示关注，隐藏删除
                     btnDelete.style.display = 'none';
                     btnFollow.style.display = 'block';
-
+                    btnEdit.style.display = 'none';
                     if (data.is_following) {
                         btnFollow.innerText = "已关注";
                         btnFollow.style.background = "#f0f0f0";
@@ -741,6 +768,69 @@
             }
         } catch (err) {
             alert("网络请求错误");
+        }
+    }
+
+    function openEditPostModal() {
+        document.getElementById('edit-post-title').value = document.getElementById('detail-title').innerText;
+        document.getElementById('edit-post-text').value = document.getElementById('detail-text').innerText;
+        document.getElementById('edit-post-cover-preview').src = document.getElementById('detail-image').src;
+
+        // 💡 新增：回显可见性
+        document.getElementById('edit-post-visible').value = currentPostVisible ? "true" : "false";
+
+        document.getElementById('edit-post-cover').value = "";
+        document.getElementById('edit-post-modal').style.display = 'flex';
+    }
+
+    // 2. 关闭编辑弹窗
+    function closeEditPostModal() {
+        document.getElementById('edit-post-modal').style.display = 'none';
+    }
+
+    // 3. 预览新选的封面图
+    function previewEditPostCover(event) {
+        const file = event.target.files[0];
+        if (file) {
+            document.getElementById('edit-post-cover-preview').src = URL.createObjectURL(file);
+        }
+    }
+
+    // 4. 发送 PUT 请求到后端
+    // 提交编辑时，把可见性状态追加进去
+    async function submitEditPost() {
+        if (!currentPostId) return;
+
+        const title = document.getElementById('edit-post-title').value;
+        const text = document.getElementById('edit-post-text').value;
+        const visible = document.getElementById('edit-post-visible').value; // 💡 新增
+        const coverFile = document.getElementById('edit-post-cover').files[0];
+
+        if (!title.trim()) return alert("标题不能为空！");
+
+        const formData = new FormData();
+        formData.append("title", title);
+        formData.append("text", text);
+        formData.append("visible", visible); // 💡 发送给后端
+        if (coverFile) {
+            formData.append("cover", coverFile);
+        }
+
+        try {
+            const res = await fetch(`/api/posts/${currentPostId}`, {
+                method: 'PUT',
+                body: formData
+            });
+
+            if (res.ok) {
+                alert("修改成功！");
+                window.location.reload();
+            } else {
+                const data = await res.json();
+                alert(data.error || "修改失败");
+            }
+        } catch (err) {
+            alert("网络错误");
         }
     }
 </script>

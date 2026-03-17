@@ -65,6 +65,65 @@ func CreatePost(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "发布成功"})
 }
 
+func EditPost(c *gin.Context) {
+	userID := c.MustGet("user_id").(uint)
+	postID := c.Param("id")
+
+	var post models.Post
+	if err := models.DB.First(&post, postID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "帖子不存在"})
+		return
+	}
+
+	if post.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "没有权限"})
+		return
+	}
+
+	// 获取基本文本数据
+	newTitle := c.PostForm("title")
+	newText := c.PostForm("text")
+
+	// 将前端传来的字符串转换为布尔值
+	isVisible := true
+	if c.PostForm("visible") == "false" {
+		isVisible = false
+	}
+
+	//将要更新的字段打包进 map
+	updates := map[string]interface{}{
+		"Title":   newTitle,
+		"Text":    newText,
+		"Visible": isVisible,
+	}
+
+	//处理可选的封面图片上传
+	file, err := c.FormFile("cover")
+	if err == nil { // 如果 err == nil，说明用户上传了新图片
+		var user models.User
+		models.DB.First(&user, userID)
+
+		// 确保存储目录存在
+		postDir := fmt.Sprintf("./assets/%s/Posts/%d", user.Username, post.ID)
+		os.MkdirAll(postDir, 0755)
+
+		// 真正将文件保存到硬盘
+		savePath := filepath.Join(postDir, file.Filename)
+		if err := c.SaveUploadedFile(file, savePath); err == nil {
+			// 保存成功后，才更新数据库里的文件名 (注意数据库字段叫 CoverImage)
+			updates["CoverImage"] = file.Filename
+		}
+	}
+
+	// 一次性执行多字段更新
+	if err := models.DB.Model(&post).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新数据库失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "修改成功"})
+}
+
 func DeletePost(c *gin.Context) {
 	userID := c.MustGet("user_id").(uint)
 	postID := c.Param("id")
