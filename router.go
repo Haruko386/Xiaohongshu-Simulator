@@ -23,7 +23,6 @@ func initRoutes(r *gin.Engine) {
 		//是否登录逻辑的判断(这个需要删吗，有下面的逻辑的话)
 		needsLogin := true
 		loggedInUserID := ""
-		// 不报错不管就完事了
 		var currentUser models.User
 
 		if tokenStr, err := c.Cookie("token"); err == nil {
@@ -127,8 +126,6 @@ func initRoutes(r *gin.Engine) {
 				})
 				return
 			}
-			models.DB.Where("user_id = ? and deleted = ?", User.ID, false).Order("created_at desc").Find(&Posts)
-
 			loggedInUserID := ""
 			var currentUser models.User
 			if tokenStr, err := c.Cookie("token"); err == nil {
@@ -139,6 +136,11 @@ func initRoutes(r *gin.Engine) {
 			}
 
 			isOwner := (loggedInUserID != "") && (loggedInUserID == targetID)
+			postQuery := models.DB.Where("user_id = ? and deleted = ?", User.ID, false)
+			if !isOwner {
+				postQuery = postQuery.Where("visible = ?", true)
+			}
+			postQuery.Order("created_at desc").Find(&Posts)
 
 			isFollowing := false
 			if currentUser.ID != 0 { // 只有登录了才判断是否关注

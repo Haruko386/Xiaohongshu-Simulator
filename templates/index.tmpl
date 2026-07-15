@@ -12,8 +12,8 @@
 <aside class="sidebar">
     <div class="logo">小红书</div>
     <nav>
-        <a href="#" class="nav-item active"><i class="fas fa-compass"></i> 发现</a>
-        <a href="/publish" class="nav-item"><i class="fas fa-plus-square"></i> 发布</a>
+        <a href="/" class="nav-item active"><i class="fas fa-compass"></i> 发现</a>
+        <a href="/publish" class="nav-item" onclick="checkLogin(event, '{{.LoggedInUserID}}')"><i class="fas fa-plus-square"></i> 发布</a>
         <a href="#" class="nav-item" onclick="openNotificationModal(event)">
             <i class="fas fa-bell"></i> 通知
             <span id="unread-badge" style="background: var(--primary-red); color: white; border-radius: 10px; padding: 0 6px; font-size: 12px; font-weight: bold; margin-left: 5px; display: none;">0</span>
@@ -21,12 +21,21 @@
         <a href="/user/profile/{{.LoggedInUserID}}" class="nav-item" onclick="checkLogin(event, '{{.LoggedInUserID}}')"><i
                     class="fas fa-user"></i> 我</a>
     </nav>
+    {{ if .NeedsLogin }}
+    <div class="sidebar-login-card">
+        <strong>登录后体验更多</strong>
+        发现更懂你的内容，收藏、点赞并参与讨论。
+        <button type="button" onclick="openLoginModal()">登录</button>
+    </div>
+    {{ end }}
     <div class="more-container">
         <div class="more-menu" id="more-menu">
             <div class="menu-item">关于小红书</div>
             <div class="menu-item">帮助与客服</div>
+            {{ if not .NeedsLogin }}
             <div class="menu-divider"></div>
             <div class="menu-item" onclick="handleLogout()">退出登录</div>
+            {{ end }}
         </div>
         <div class="more-btn" onclick="toggleMoreMenu(event)">
             <i class="fas fa-bars"></i> 更多
@@ -38,26 +47,38 @@
     <header class="header">
         <div class="search-bar">
             <i class="fas fa-search"></i>
-            <input type="text" placeholder="搜索小红书">
+            <input id="feed-search" type="search" placeholder="搜索笔记或用户" autocomplete="off" aria-label="搜索笔记或用户">
+            <button id="search-clear" class="search-clear" type="button" onclick="clearFeedSearch()" aria-label="清空搜索"><i class="fas fa-circle-xmark"></i></button>
         </div>
     </header>
 
-    <div class="waterfall-container">
+    <div class="categories" aria-label="内容分类">
+        <div class="cat-item active">推荐</div>
+        <div class="cat-item">穿搭</div>
+        <div class="cat-item">美食</div>
+        <div class="cat-item">彩妆</div>
+        <div class="cat-item">影视</div>
+        <div class="cat-item">职场</div>
+        <div class="cat-item">情感</div>
+        <div class="cat-item">家居</div>
+        <div class="cat-item">游戏</div>
+        <div class="cat-item">旅行</div>
+        <div class="cat-item">健身</div>
+    </div>
+
+    <div id="waterfall-container" class="waterfall-container">
         {{ range .Posts }}
-            <div class="card" onclick="openPostDetail('{{ .ID }}')">
+            <article class="card" data-title="{{ .Title }}" data-user="{{ .User.Username }}" tabindex="0" role="button" onclick="openPostDetail('{{ .ID }}')" onkeydown="if(event.key === 'Enter') openPostDetail('{{ .ID }}')">
 
                 <img src="/asset/{{ .User.Username }}/Posts/{{ .ID }}/{{ .CoverImage }}" alt="{{ .Title }}"
-                     class="card-img">
+                     class="card-img" loading="lazy">
 
                 <div class="card-info">
                     <div class="card-title">{{ .Title }}</div>
                     <div class="card-meta">
-                        <div class="user-info">
-                            <img style="max-width: 20px; max-height: 20px; border-radius: 50%"
-                                 src="/asset/{{ .User.Username }}/{{ .User.Avatar }}">
-                        </div>
-                        <div class="user-info">
-                            <span style="display: flex; align-items: flex-start;">{{ .User.Username }}</span>
+                        <div class="card-author">
+                            <img src="/asset/{{ .User.Username }}/{{ .User.Avatar }}" alt="" loading="lazy">
+                            <span>{{ .User.Username }}</span>
                         </div>
                         <div class="likes">
                             <i class="{{ if .IsLiked }}fas fa-heart{{ else }}far fa-heart{{ end }}"
@@ -66,14 +87,15 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </article>
         {{ end }}
     </div>
+    <div id="search-empty" class="empty-feed" style="display:none;"><i class="far fa-face-meh"></i>没有找到相关笔记，换个关键词试试</div>
+    {{ if not .Posts }}<div class="empty-feed"><i class="far fa-images"></i>暂时还没有笔记</div>{{ end }}
 </main>
 
-<div id="login-modal" class="modal-overlay" {{ if .NeedsLogin }}style="display: flex;"
-     {{ else }}style="display: none;"{{ end }}>
-    <div class="modal-content">
+<div id="login-modal" class="modal-overlay" style="display: none;" onclick="closeOnBackdrop(event, 'login-modal')">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-label="登录或注册">
         <span class="close-btn" onclick="closeModal()"><i class="fas fa-times"></i></span>
 
         <div class="modal-left">
@@ -115,8 +137,8 @@
     </div>
 </div>
 
-<div id="post-detail-modal" class="post-detail-overlay" style="display: none;">
-    <div class="post-detail-box">
+<div id="post-detail-modal" class="post-detail-overlay" style="display: none;" onclick="closeOnBackdrop(event, 'post-detail-modal')">
+    <div class="post-detail-box" role="dialog" aria-modal="true" aria-label="笔记详情">
         <div class="post-detail-left">
             <div class="close-detail-btn" onclick="closePostDetail()"><i class="fas fa-times"></i></div>
             <img id="detail-image" src="" alt="笔记封面">
@@ -125,7 +147,7 @@
         <div class="post-detail-right">
             <div class="detail-header">
                 <div class="detail-author">
-                    <img id="detail-avatar" src="" onerror="this.onerror=null; this.src='https://via.placeholder.com/40'">
+                    <img id="detail-avatar" src="" onerror="this.onerror=null; this.src='/static/avatar-placeholder.svg'">
                     <span id="detail-username">加载中...</span>
                 </div>
                 <button id="modal-btn-follow" class="btn-follow" onclick="toggleModalFollow()" style="display: none; transition: all 0.2s;">关注</button>
@@ -145,11 +167,11 @@
             </div>
 
             <div class="detail-footer">
-                <div style="flex: 1; display: flex; align-items: center; background: #f5f5f5; border-radius: 24px; padding-right: 15px;">
-                    <input type="text" id="comment-input" class="comment-input" placeholder="说点什么..." style="flex: 1; background: transparent; padding-right: 5px;">
-                    <span onclick="submitComment()" style="color: var(--primary-red); font-weight: bold; cursor: pointer; white-space: nowrap; font-size: 14px;">发送</span>
+                <div class="comment-composer">
+                    <input type="text" id="comment-input" class="comment-input" placeholder="说点什么..." maxlength="300">
+                    <button type="button" class="comment-send" onclick="submitComment()">发送</button>
                 </div>
-                <div class="interaction-icons" style="margin-left: 15px;">
+                <div class="interaction-icons">
                     <div class="action-btn" id="btn-like" onclick="toggleLike()">
                         <i id="icon-like" class="far fa-heart"></i>
                         <span id="count-like">0</span>
@@ -158,7 +180,7 @@
                         <i id="icon-collect" class="far fa-star"></i>
                         <span id="count-collect">0</span>
                     </div>
-                    <div class="action-btn">
+                    <div class="action-btn" onclick="shareCurrentPost()" title="分享笔记">
                         <i class="fas fa-share"></i>
                     </div>
                 </div>
@@ -167,22 +189,13 @@
     </div>
 </div>
 
-<div id="notification-modal" class="modal-overlay" style="display: none; z-index: 1000; background: rgba(0, 0, 0, 0.4); align-items: center; justify-content: center;">
-
-    <div style="position: relative; width: 450px; padding: 30px 20px; border-radius: 16px; background: #ffffff; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
-
-        <div onclick="closeNotificationModal()" style="position: absolute; top: -15px; right: -15px; width: 45px; height: 45px; background: #000; color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: transform 0.2s;">
-            <i class="fas fa-times"></i>
-        </div>
-
-        <div style="margin-bottom: 25px; font-size: 22px; font-weight: bold; color: #333; padding-left: 10px;">
-            通知 (Notifications)
-        </div>
-
-        <div id="notification-list-container" style="max-height: 450px; overflow-y: auto; padding: 0 10px;">
+<div id="notification-modal" class="modal-overlay" style="display: none;" onclick="closeOnBackdrop(event, 'notification-modal')">
+    <div class="notification-panel" role="dialog" aria-modal="true" aria-label="通知">
+        <button type="button" class="icon-close" onclick="closeNotificationModal()" aria-label="关闭"><i class="fas fa-times"></i></button>
+        <div class="notification-header">通知</div>
+        <div id="notification-list-container" class="notification-list">
             <div style="text-align:center; padding: 30px; color:#999;">加载中...</div>
         </div>
-
     </div>
 </div>
 
@@ -210,6 +223,14 @@
     </div>
 </div>
 
+<nav class="mobile-nav" aria-label="移动端导航">
+    <a href="/" class="active"><i class="fas fa-compass"></i><span>发现</span></a>
+    <a href="/publish" onclick="checkLogin(event, '{{.LoggedInUserID}}')"><i class="fas fa-plus-square"></i><span>发布</span></a>
+    <a href="#" onclick="openNotificationModal(event)"><i class="fas fa-bell"></i><span>通知</span></a>
+    <a href="/user/profile/{{.LoggedInUserID}}" onclick="checkLogin(event, '{{.LoggedInUserID}}')"><i class="fas fa-user"></i><span>我</span></a>
+</nav>
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
+
 <script>
     let currentPostId = null
     let currentReplyParentId = 0;
@@ -217,38 +238,80 @@
     let currentPostAuthorId = 0;
     let currentPostVisible = true;
 
-    function previewPostCover(event) {
-        const file = event.target.files[0];
-        if (file) {
-            document.getElementById('post-cover-preview').src = URL.createObjectURL(file);
-            document.getElementById('post-cover-preview').style.display = 'block';
-            document.getElementById('post-cover-text').style.display = 'none';
-        }
+    function showToast(message) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        container.appendChild(toast);
+        window.setTimeout(() => toast.remove(), 2400);
     }
 
-    async function submitPost() {
-        const coverFile = document.getElementById('post-cover').files[0];
-        const title = document.getElementById('post-title').value;
-        const text = document.getElementById('post-text').value;
+    function setBodyLocked(locked) {
+        document.body.style.overflow = locked ? 'hidden' : '';
+    }
 
-        if (!coverFile) return alert("必须上传封面图！");
-        if (!title) return alert("请填写标题！");
+    function openLoginModal() {
+        document.getElementById('login-modal').style.display = 'flex';
+        setBodyLocked(true);
+        window.setTimeout(() => document.getElementById('login-username')?.focus(), 80);
+    }
 
-        const formData = new FormData();
-        formData.append("cover", coverFile);
-        formData.append("title", title);
-        formData.append("text", text);
+    function closeModal() {
+        document.getElementById('login-modal').style.display = 'none';
+        setBodyLocked(false);
+    }
 
+    function closeOnBackdrop(event, modalId) {
+        if (event.target.id !== modalId) return;
+        if (modalId === 'post-detail-modal') closePostDetail();
+        else if (modalId === 'notification-modal') closeNotificationModal();
+        else if (modalId === 'login-modal') closeModal();
+    }
+
+    function escapeHtml(value) {
+        const node = document.createElement('div');
+        node.textContent = value == null ? '' : String(value);
+        return node.innerHTML;
+    }
+
+    function applyFeedFilter(value) {
+        const keyword = value.trim().toLocaleLowerCase('zh-CN');
+        let visibleCount = 0;
+        document.querySelectorAll('#waterfall-container .card').forEach(card => {
+            const haystack = `${card.dataset.title || ''} ${card.dataset.user || ''}`.toLocaleLowerCase('zh-CN');
+            const visible = !keyword || haystack.includes(keyword);
+            card.style.display = visible ? 'inline-block' : 'none';
+            if (visible) visibleCount++;
+        });
+        const empty = document.getElementById('search-empty');
+        if (empty) empty.style.display = keyword && visibleCount === 0 ? 'block' : 'none';
+        const clear = document.getElementById('search-clear');
+        if (clear) clear.style.display = keyword ? 'block' : 'none';
+    }
+
+    function clearFeedSearch() {
+        const input = document.getElementById('feed-search');
+        if (!input) return;
+        input.value = '';
+        applyFeedFilter('');
+        input.focus();
+    }
+
+    async function shareCurrentPost() {
+        if (!currentPostId) return;
+        const url = new URL(window.location.href);
+        url.searchParams.set('note', currentPostId);
+        const shareData = {title: document.getElementById('detail-title').innerText, text: '分享一篇小红书笔记', url: url.toString()};
         try {
-            const res = await fetch('/api/post/create', {method: 'POST', body: formData});
-            if (res.ok) {
-                window.location.reload(); // 发布成功，刷新看首页瀑布流！
-            } else {
-                const data = await res.json();
-                alert(data.error || "发布失败");
+            if (navigator.share) await navigator.share(shareData);
+            else {
+                await navigator.clipboard.writeText(shareData.url);
+                showToast('链接已复制');
             }
-        } catch (err) {
-            alert("网络错误");
+        } catch (error) {
+            if (error?.name !== 'AbortError') showToast('分享失败，请稍后重试');
         }
     }
 
@@ -307,7 +370,9 @@
         const data = await res.json();
         if (res.ok) {
             // 登录成功，刷新当前页面，因为有了 Cookie，后端不会再传 NeedsLogin=true
-            window.location.reload();
+            const url = new URL(window.location.href);
+            url.searchParams.delete('login');
+            window.location.href = url.pathname + url.search;
         } else {
             showMsg(data.error || "登录失败");
         }
@@ -316,7 +381,7 @@
     function checkLogin(e, uid) {
         if (!uid) {
             e.preventDefault();
-            document.getElementById('login-modal').style.display = 'flex';
+            openLoginModal();
         }
     }
 
@@ -350,6 +415,7 @@
 
     async function openPostDetail(postId) {
         document.getElementById('post-detail-modal').style.display = 'flex';
+        setBodyLocked(true);
 
         try {
             const res = await fetch(`/api/posts/${postId}`);
@@ -389,6 +455,9 @@
                 document.getElementById('detail-image').src = `/asset/${data.user.username}/Posts/${data.post.ID}/${data.post.cover_image}`;
                 document.getElementById('detail-avatar').src = `/asset/${data.user.username}/${data.user.avatar}`;
                 document.getElementById('detail-username').innerText = data.user.username;
+                document.querySelector('.detail-author').onclick = () => {
+                    window.location.href = `/user/profile/${data.user.ID}`;
+                };
                 document.getElementById('detail-title').innerText = data.post.title;
                 document.getElementById('detail-text').innerText = data.post.text;
                 document.getElementById('count-like').innerText = data.like_count || 0;
@@ -435,9 +504,10 @@
                     const likeColor = c.is_liked ? 'color: var(--primary-red);' : 'color: #999;';
 
                     // 💡 如果是回复的回复，加上高亮的 @ 前缀
-                    let textHtml = c.text;
+                    const safeUsername = escapeHtml(c.user.username);
+                    let textHtml = escapeHtml(c.text);
                     if (isSub && c.reply_to) {
-                        textHtml = `<span>回复 <span style="color: #5c7c9c;">@${c.reply_to}</span>: </span>${c.text}`;
+                        textHtml = `<span>回复 <span style="color: #5c7c9c;">@${escapeHtml(c.reply_to)}</span>: </span>${escapeHtml(c.text)}`;
                     }
 
                     // 判断是否是楼主（作者）
@@ -449,10 +519,10 @@
 
                     return `
                         <div class="mock-comment" style="margin-bottom: ${isSub ? '15px' : '20px'};">
-                            <img src="${avatarPath}" style="width: ${isSub ? '24px' : '32px'}; height: ${isSub ? '24px' : '32px'}; border-radius: 50%;" onerror="this.onerror=null; this.src='https://via.placeholder.com/32'">
+                            <img src="${avatarPath}" style="width: ${isSub ? '24px' : '32px'}; height: ${isSub ? '24px' : '32px'}; border-radius: 50%;" onerror="this.onerror=null; this.src='/static/avatar-placeholder.svg'">
                             <div class="mock-comment-content" style="flex: 1;">
                                 <div class="name" style="color: #666; font-size: 13px; margin-bottom: 4px; display: flex; justify-content: space-between;">
-                                    <span>${c.user.username}${authorTag}</span>
+                                    <span>${safeUsername}${authorTag}</span>
                                     <span style="color: #999; font-size: 12px;">${dateStr}</span>
                                 </div>
                                 <div class="text" style="color: #333; font-size: 14px; line-height: 1.5;">${textHtml}</div>
@@ -462,7 +532,7 @@
                                         <i id="comment-like-icon-${c.ID}" class="${likeIconClass}" style="${likeColor} font-size: 13px; transition: transform 0.2s;"></i>
                                         <span id="comment-like-count-${c.ID}">${c.like_count || 0}</span>
                                     </div>
-                                    <div style="cursor: pointer; font-weight: 500;" onclick="prepareReply(${clickParentId}, '${c.user.username}', ${isSub})">回复</div>
+                                    <div style="cursor: pointer; font-weight: 500;" onclick="prepareReply(${clickParentId}, decodeURIComponent('${encodeURIComponent(c.user.username)}'), ${isSub})">回复</div>
                                 </div>
                             </div>
                         </div>
@@ -499,6 +569,12 @@
 
     function closePostDetail() {
         document.getElementById('post-detail-modal').style.display = 'none';
+        setBodyLocked(false);
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('note')) {
+            url.searchParams.delete('note');
+            history.replaceState(null, '', url);
+        }
         // 清空内容，防止下次点开看到上一次残影
         document.getElementById('detail-image').src = "";
         document.getElementById('detail-title').innerText = "加载中...";
@@ -530,7 +606,7 @@
                     iconLike.className = 'far fa-heart';
                 }
             } else {
-                alert("操作失败，请先登录！");
+                openLoginModal();
             }
         } catch (err) { alert("网络请求错误"); }
     }
@@ -559,7 +635,7 @@
                     iconCollect.className = 'far fa-star';
                 }
             } else {
-                alert("操作失败，请先登录！");
+                openLoginModal();
             }
         } catch (err) { alert("网络请求错误"); }
     }
@@ -580,7 +656,7 @@
         const input = document.getElementById('comment-input');
         const text = input.value.trim();
 
-        if (!text) return alert("评论内容不能为空！");
+        if (!text) return showToast("评论内容不能为空");
 
         try {
             const res = await fetch(`/api/posts/${currentPostId}/comments`, {
@@ -603,7 +679,8 @@
                 openPostDetail(currentPostId);     // 刷新评论区
             } else {
                 const data = await res.json();
-                alert(data.error || "评论失败，请先登录！");
+                if (res.status === 401) openLoginModal();
+                else showToast(data.error || "评论失败");
             }
         } catch (err) {
             alert("网络请求错误");
@@ -635,7 +712,7 @@
                     icon.style.color = '#999';
                 }
             } else {
-                alert("操作失败，请先登录！");
+                openLoginModal();
             }
         } catch (err) {
             alert("网络请求错误");
@@ -683,7 +760,7 @@
                     window.location.reload();
                 }
             } else {
-                alert("请先登录！");
+                openLoginModal();
             }
         } catch (err) { alert("网络错误"); }
     }
@@ -700,7 +777,7 @@
 
     // 初始化 WebSocket
     function initWebSocket() {
-        ws = new WebSocket("ws://" + window.location.host + "/api/ws");
+        ws = new WebSocket((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + "/api/ws");
         ws.onopen = function() { console.log("🟢 WebSocket 基站连接成功！"); };
         ws.onclose = function() { console.log("🔴 WebSocket 连接已断开"); };
 
@@ -756,21 +833,20 @@
             let actionText = "给你发了消息";
             if (n.type === "like_post") actionText = "赞了你的笔记";
             else if (n.type === "like_comment") actionText = "赞了你的评论";
-            else if (n.type === "comment") actionText = `评论了你: ${n.content || ''}`;
+            else if (n.type === "collect_post") actionText = "收藏了你的笔记";
+            else if (n.type === "comment") actionText = `评论了你：${escapeHtml(n.content || '')}`;
             else if (n.type === "follow") actionText = "关注了你";
 
-            // 未读的消息加个浅红色背景区分
-            const bg = n.is_read ? 'transparent' : '#fff0f0';
-            const dot = n.is_read ? '' : '<div style="width:8px; height:8px; background:red; border-radius:50%; margin-right:10px;"></div>';
+            const username = escapeHtml(n.from_user?.username || '小红薯');
+            const avatar = n.from_user ? `/asset/${encodeURIComponent(n.from_user.username)}/${encodeURIComponent(n.from_user.avatar)}` : '';
 
             html += `
-            <div style="display:flex; align-items:center; padding: 12px 10px; border-bottom: 1px solid #f5f5f5; background: ${bg}; border-radius: 8px; margin-bottom: 5px;">
-                ${dot}
-                <img src="/asset/${n.from_user.username}/${n.from_user.avatar}"
+            <div class="notification-item ${n.is_read ? '' : 'unread'}">
+                <img src="${avatar}"
                      style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px;"
-                     onerror="this.src='https://via.placeholder.com/40'">
+                     onerror="this.onerror=null;this.src='/static/avatar-placeholder.svg'">
                 <div style="flex: 1;">
-                    <div style="font-size: 14px; color: #333;"><span style="font-weight:bold;">${n.from_user.username}</span> ${actionText}</div>
+                    <div style="font-size: 14px; color: #333;"><span style="font-weight:bold;">${username}</span> ${actionText}</div>
                     <div style="font-size: 12px; color: #999; margin-top: 4px;">${n.CreatedAt ? n.CreatedAt.split('T')[0] : '刚刚'}</div>
                 </div>
             </div>`;
@@ -784,11 +860,12 @@
 
         // 如果没登录，弹登录框
         if (currentUserId === "") {
-            document.getElementById('login-modal').style.display = 'flex';
+            openLoginModal();
             return;
         }
 
         document.getElementById('notification-modal').style.display = 'flex';
+        setBodyLocked(true);
 
         // 如果有未读消息，向后端发送请求清空，并把前端红点归零
         if (unreadCount > 0) {
@@ -803,6 +880,7 @@
     // 关闭通知面板
     function closeNotificationModal() {
         document.getElementById('notification-modal').style.display = 'none';
+        setBodyLocked(false);
     }
 
     async function deletePost() {
@@ -892,6 +970,49 @@
             alert("网络错误");
         }
     }
+
+    document.getElementById('feed-search')?.addEventListener('input', event => applyFeedFilter(event.target.value));
+    document.querySelectorAll('.cat-item').forEach(item => {
+        item.addEventListener('click', () => {
+            document.querySelectorAll('.cat-item').forEach(tab => tab.classList.remove('active'));
+            item.classList.add('active');
+            const input = document.getElementById('feed-search');
+            if (item.textContent.trim() === '推荐') {
+                input.value = '';
+                applyFeedFilter('');
+            } else {
+                input.value = item.textContent.trim();
+                applyFeedFilter(input.value);
+            }
+        });
+    });
+
+    document.getElementById('comment-input')?.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            submitComment();
+        }
+    });
+    ['login-username', 'login-password'].forEach(id => document.getElementById(id)?.addEventListener('keydown', event => {
+        if (event.key === 'Enter') handleLogin();
+    }));
+    ['reg-username', 'reg-password'].forEach(id => document.getElementById(id)?.addEventListener('keydown', event => {
+        if (event.key === 'Enter') handleRegister();
+    }));
+
+    document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        if (document.getElementById('edit-post-modal').style.display === 'flex') closeEditPostModal();
+        else if (document.getElementById('post-detail-modal').style.display === 'flex') closePostDetail();
+        else if (document.getElementById('notification-modal').style.display === 'flex') closeNotificationModal();
+        else if (document.getElementById('login-modal').style.display === 'flex') closeModal();
+    });
+
+    const initialPostId = new URL(window.location.href).searchParams.get('note');
+    if (initialPostId) openPostDetail(initialPostId);
+    const initialAction = new URL(window.location.href).searchParams;
+    if (initialAction.get('login') === '1') openLoginModal();
+    if (initialAction.get('notifications') === '1') openNotificationModal();
 </script>
 
 </body>

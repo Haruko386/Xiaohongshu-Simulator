@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -18,15 +19,19 @@ func CreatePost(c *gin.Context) {
 
 	var user models.User
 	if err := models.DB.First(&user, userID).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"erroe": "用户不存在"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户不存在"})
 		return
 	}
 
-	title := c.PostForm("title")
+	title := strings.TrimSpace(c.PostForm("title"))
 	text := c.PostForm("text")
+	if title == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "标题不能为空"})
+		return
+	}
 	file, err := c.FormFile("cover")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"erroe": "封面为必选项"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "封面为必选项"})
 		return
 	}
 
@@ -35,14 +40,14 @@ func CreatePost(c *gin.Context) {
 		Title:      title,
 		Text:       text,
 		UserID:     user.ID,
-		Visible:    true,
+		Visible:    c.PostForm("visible") != "false",
 		Deleted:    false,
 		PublicDate: &now,
 		EditDate:   &now,
 	}
 
 	if err := models.DB.Create(&newPost).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"erroe": "创建笔记失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建笔记失败"})
 		return
 	}
 
@@ -54,13 +59,14 @@ func CreatePost(c *gin.Context) {
 	}
 
 	// 保存图像
-	savePath := filepath.Join(postDir, file.Filename)
+	filename := filepath.Base(file.Filename)
+	savePath := filepath.Join(postDir, filename)
 	if err := c.SaveUploadedFile(file, savePath); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存封面失败"})
 		return
 	}
 
-	models.DB.Model(&newPost).Update("CoverImage", file.Filename)
+	models.DB.Model(&newPost).Update("CoverImage", filename)
 
 	c.JSON(http.StatusOK, gin.H{"message": "发布成功"})
 }
@@ -81,8 +87,12 @@ func EditPost(c *gin.Context) {
 	}
 
 	// 获取基本文本数据
-	newTitle := c.PostForm("title")
+	newTitle := strings.TrimSpace(c.PostForm("title"))
 	newText := c.PostForm("text")
+	if newTitle == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "标题不能为空"})
+		return
+	}
 
 	// 将前端传来的字符串转换为布尔值
 	isVisible := true
@@ -108,10 +118,11 @@ func EditPost(c *gin.Context) {
 		os.MkdirAll(postDir, 0755)
 
 		// 真正将文件保存到硬盘
-		savePath := filepath.Join(postDir, file.Filename)
+		filename := filepath.Base(file.Filename)
+		savePath := filepath.Join(postDir, filename)
 		if err := c.SaveUploadedFile(file, savePath); err == nil {
 			// 保存成功后，才更新数据库里的文件名 (注意数据库字段叫 CoverImage)
-			updates["CoverImage"] = file.Filename
+			updates["CoverImage"] = filename
 		}
 	}
 
@@ -211,6 +222,11 @@ func GetPost(c *gin.Context) {
 		if models.DB.Where("user_id = ? AND post_id = ?", user.ID, post.ID).First(&tempCollected).Error == nil {
 			isCollected = true
 		}
+	}
+
+	if post.Deleted || (!post.Visible && (!isLoginned || user.ID != post.UserID)) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "帖子不存在"})
+		return
 	}
 
 	isFollowing := false

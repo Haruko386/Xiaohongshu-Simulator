@@ -108,7 +108,10 @@ func UpdateUserProfile(c *gin.Context) {
 	// 验证登录状态
 	userID := c.MustGet("user_id").(uint)
 	var user models.User
-	models.DB.Where("user_id = ?", userID).First(&user)
+	if err := models.DB.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
+		return
+	}
 
 	gender := c.PostForm("gender")
 	region := c.PostForm("region")
@@ -167,6 +170,10 @@ func ToggleFollow(c *gin.Context) {
 	targetID, err := strconv.Atoi(targetIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID格式错误"})
+		return
+	}
+	if uint(targetID) == userID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不能关注自己"})
 		return
 	}
 
@@ -285,11 +292,19 @@ func GetPostList(c *gin.Context) {
 	}
 
 	if types == "created" {
-		if err := models.DB.Preload("User").Where("visible = ? AND deleted = ? AND user_id = ?", true, false, userID).Order("created_at desc").Find(&Posts).Error; err != nil {
+		query := models.DB.Preload("User").Where("deleted = ? AND user_id = ?", false, userID)
+		if !isLoggedIn || fmt.Sprint(currentUser.ID) != userID {
+			query = query.Where("visible = ?", true)
+		}
+		if err := query.Order("created_at desc").Find(&Posts).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取数据失败"})
 			return
 		}
 	} else if types == "collected" {
+		if !isLoggedIn || fmt.Sprint(currentUser.ID) != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "无权查看该内容"})
+			return
+		}
 		var collections []models.Collection
 		if err := models.DB.Where("user_id = ?", userID).Find(&collections).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取数据失败"})
@@ -302,9 +317,13 @@ func GetPostList(c *gin.Context) {
 		}
 
 		if len(postIDs) > 0 {
-			models.DB.Preload("User").Where("id IN (?)", postIDs).Order("created_at desc").Find(&Posts)
+			models.DB.Preload("User").Where("id IN (?) AND visible = ? AND deleted = ?", postIDs, true, false).Order("created_at desc").Find(&Posts)
 		}
 	} else if types == "liked" {
+		if !isLoggedIn || fmt.Sprint(currentUser.ID) != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "无权查看该内容"})
+			return
+		}
 		var likes []models.Like
 		if err := models.DB.Where("user_id = ?", userID).Find(&likes).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取数据失败"})
@@ -317,7 +336,7 @@ func GetPostList(c *gin.Context) {
 		}
 
 		if len(postIDs) > 0 {
-			models.DB.Preload("User").Where("id IN (?)", postIDs).Order("created_at desc").Find(&Posts)
+			models.DB.Preload("User").Where("id IN (?) AND visible = ? AND deleted = ?", postIDs, true, false).Order("created_at desc").Find(&Posts)
 		}
 	}
 

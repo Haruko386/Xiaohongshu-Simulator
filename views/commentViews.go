@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type commentReq struct {
@@ -23,6 +24,11 @@ func CreateComment(c *gin.Context) {
 	var req commentReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+	req.Text = strings.TrimSpace(req.Text)
+	if req.Text == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "评论内容不能为空"})
 		return
 	}
 
@@ -125,7 +131,7 @@ func ToggleCommentLike(c *gin.Context) {
 		isLiked = true
 
 		var comment models.Comment
-		if err := models.DB.First(&comment, commentLike.CommentID).Error; err == nil && comment.UserID != userID {
+		if err := models.DB.First(&comment, uint(commentID)).Error; err == nil && comment.UserID != userID {
 			newNotif := models.Notification{
 				UserID:     comment.UserID,
 				FromUserID: userID,

@@ -7,135 +7,60 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="/static/index.css" rel="stylesheet">
     <style>
-        .publish-container {
-            flex: 1;
-            padding: 40px;
-            overflow-y: auto;
-            background: #fff;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+        .publish-container { padding: 0 34px 64px; background: #fff; }
+        .publish-shell { width: min(1120px, 100%); margin: 0 auto; }
+        .publish-header { display:flex; align-items:center; justify-content:space-between; min-height:82px; border-bottom:1px solid var(--line); }
+        .publish-heading { font-size:20px; font-weight:600; }
+        .draft-status { color:#aaa; font-size:12px; }
+        .publish-editor { display:grid; grid-template-columns:minmax(320px, .9fr) minmax(380px, 1.1fr); gap:52px; padding-top:38px; }
+        .material-title, .editor-title { margin-bottom:16px; color:#333; font-size:15px; font-weight:600; }
+        .upload-area { position:relative; display:grid; min-height:520px; margin:0; padding:30px; place-items:center; overflow:hidden; border:1px dashed #d8d8d8; border-radius:14px; background:#fafafa; }
+        .upload-area.dragging { border-color:var(--primary-red); background:#fff5f6; }
+        .upload-empty { color:#888; text-align:center; }
+        .upload-icon { display:grid; width:58px; height:58px; margin:0 auto 18px; place-items:center; border-radius:16px; background:#fff; box-shadow:0 5px 18px rgba(0,0,0,.06); color:#aaa; font-size:25px; }
+        .upload-empty strong { display:block; margin-bottom:8px; color:#333; font-size:15px; }
+        .upload-empty small { color:#aaa; line-height:1.7; }
+        #post-cover-preview { display:none; width:100%; max-height:460px; border-radius:10px; object-fit:contain; }
+        .replace-cover { position:absolute; right:14px; bottom:14px; display:none; padding:8px 13px; border:0; border-radius:18px; background:rgba(0,0,0,.68); color:#fff; cursor:pointer; font-size:12px; }
+        .editor-card { padding:24px; border:1px solid var(--line); border-radius:16px; }
+        .field-wrap { position:relative; }
+        .publish-input { height:50px; padding-right:62px; font-size:16px; font-weight:500; }
+        .publish-textarea { min-height:310px; padding-bottom:42px; line-height:1.75; resize:none; }
+        .char-count { position:absolute; right:13px; bottom:27px; color:#aaa; font-size:11px; }
+        .textarea-count { bottom:29px; }
+        .publish-tools { display:flex; gap:8px; margin:-2px 0 20px; }
+        .tool-chip { padding:7px 11px; border:1px solid #e8e8e8; border-radius:18px; background:#fff; color:#666; cursor:pointer; font-size:12px; }
+        .tool-chip:hover { background:#f7f7f7; }
+        .publish-settings { padding:18px 0 4px; border-top:1px solid var(--line); }
+        .setting-row { display:flex; align-items:center; justify-content:space-between; gap:20px; min-height:48px; font-size:14px; }
+        .setting-row span i { width:24px; color:#999; }
+        .setting-row select { min-width:128px; padding:8px 10px; border:1px solid #e5e5e5; border-radius:8px; background:#fff; outline:0; }
+        .publish-actions { display:flex; justify-content:flex-end; gap:12px; margin-top:26px; }
+        .btn-secondary { padding:11px 28px; border:1px solid #ddd; border-radius:22px; background:#fff; color:#555; cursor:pointer; }
+        .publish-btn { min-width:126px; padding:12px 28px; font-size:14px; box-shadow:none; }
+        @media (max-width: 980px) {
+            .publish-editor { grid-template-columns:1fr; gap:28px; }
+            .upload-area { min-height:360px; }
         }
-
-        .publish-box {
-            width: 100%;
-            max-width: 800px;
-            padding-top: 20px;
-        }
-
-        .publish-title {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 30px;
-            color: #333;
-        }
-
-        /* 💡 修复点：加上了 display: block; 并增大了上下内边距 */
-        .upload-area {
-            display: block;
-            border: 2px dashed #ddd;
-            border-radius: 12px;
-            padding: 60px 20px;
-            text-align: center;
-            cursor: pointer;
-            margin-bottom: 24px;
-            background: #fafafa;
-            transition: all 0.2s;
-        }
-
-        .upload-area:hover {
-            background: #f0f0f0;
-            border-color: #ccc;
-        }
-
-        .upload-area img {
-            max-width: 100%;
-            max-height: 400px;
-            display: none;
-            margin: 0 auto;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .publish-input {
-            width: 100%;
-            padding: 16px;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            font-size: 16px;
-            margin-bottom: 24px;
-            outline: none;
-            background: #fafafa;
-            box-sizing: border-box;
-            transition: border 0.2s;
-        }
-
-        .publish-input:focus {
-            border-color: var(--primary-red);
-            background: #fff;
-        }
-
-        .publish-textarea {
-            width: 100%;
-            padding: 16px;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            font-size: 16px;
-            margin-bottom: 24px;
-            outline: none;
-            background: #fafafa;
-            resize: vertical;
-            min-height: 400px;
-            font-family: inherit;
-            box-sizing: border-box;
-            line-height: 1.6;
-            transition: border 0.2s;
-        }
-
-        .publish-textarea:focus {
-            border-color: var(--primary-red);
-            background: #fff;
-        }
-
-        .publish-action {
-            text-align: right;
-            margin-bottom: 60px;
-        }
-
-        .publish-btn {
-            background: var(--primary-red);
-            color: white;
-            border: none;
-            padding: 14px 40px;
-            border-radius: 24px;
-            font-size: 16px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.2s;
-            box-shadow: 0 4px 12px rgba(255, 36, 66, 0.2);
-        }
-
-        .publish-btn:hover {
-            background: #e01f39;
-            box-shadow: 0 6px 16px rgba(255, 36, 66, 0.3);
-            transform: translateY(-2px);
+        @media (max-width: 820px) {
+            .publish-container { padding:0 14px 32px; }
+            .publish-header { min-height:64px; }
+            .publish-editor { padding-top:22px; }
+            .editor-card { padding:18px 14px; }
+            .upload-area { min-height:300px; }
+            .publish-actions { position:sticky; bottom:70px; padding:12px 0; background:rgba(255,255,255,.94); backdrop-filter:blur(12px); }
         }
     </style>
 </head>
 <body>
-
 <aside class="sidebar">
     <div class="logo">小红书</div>
     <nav>
         <a href="/" class="nav-item"><i class="fas fa-compass"></i> 发现</a>
         <a href="/publish" class="nav-item active"><i class="fas fa-plus-square"></i> 发布</a>
-        <a href="#" class="nav-item" onclick="openNotificationModal(event)">
-            <i class="fas fa-bell"></i> 通知
-            <span id="unread-badge" style="background: var(--primary-red); color: white; border-radius: 10px; padding: 0 6px; font-size: 12px; font-weight: bold; margin-left: 5px; display: none;">0</span>
-        </a>
+        <a href="/?notifications=1" class="nav-item"><i class="fas fa-bell"></i> 通知</a>
         <a href="/user/profile/{{.LoggedInUserID}}" class="nav-item"><i class="fas fa-user"></i> 我</a>
     </nav>
-
     <div class="more-container">
         <div class="more-menu" id="more-menu">
             <div class="menu-item">关于小红书</div>
@@ -143,99 +68,178 @@
             <div class="menu-divider"></div>
             <div class="menu-item" onclick="handleLogout()">退出登录</div>
         </div>
-        <div class="more-btn" onclick="toggleMoreMenu(event)">
-            <i class="fas fa-bars"></i> 更多
-        </div>
+        <div class="more-btn" onclick="toggleMoreMenu(event)"><i class="fas fa-bars"></i> 更多</div>
     </div>
 </aside>
 
 <main class="publish-container">
-    <div class="publish-box">
-        <div class="publish-title">发布新笔记</div>
+    <div class="publish-shell">
+        <header class="publish-header">
+            <h1 class="publish-heading">发布图文笔记</h1>
+            <span id="draft-status" class="draft-status">内容仅保存在当前页面</span>
+        </header>
 
-        <label for="post-cover" class="upload-area">
-            <img id="post-cover-preview" src="">
-            <div id="post-cover-text">
-                <i class="fas fa-image" style="font-size: 48px; color: #ddd; margin-bottom: 16px;"></i>
-                <div style="font-size: 16px; color: #666; font-weight: 500;">点击上传封面图 (必选)</div>
-            </div>
-        </label>
-        <input type="file" id="post-cover" accept="image/*" style="display: none;" onchange="previewPostCover(event)">
+        <div class="publish-editor">
+            <section>
+                <h2 class="material-title">上传图片</h2>
+                <label id="upload-area" for="post-cover" class="upload-area">
+                    <div id="post-cover-text" class="upload-empty">
+                        <span class="upload-icon"><i class="far fa-image"></i></span>
+                        <strong>拖拽图片到这里，或点击上传</strong>
+                        <small>建议使用清晰的竖版图片<br>支持 JPG、PNG、GIF，单张图片</small>
+                    </div>
+                    <img id="post-cover-preview" src="" alt="封面预览">
+                    <span id="replace-cover" class="replace-cover"><i class="fas fa-rotate"></i> 更换图片</span>
+                </label>
+                <input type="file" id="post-cover" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+            </section>
 
-        <input type="text" id="post-title" class="publish-input" placeholder="填写标题">
-        <textarea id="post-text" class="publish-textarea" placeholder="在这里写入 Markdown 格式的正文..."></textarea>
-
-        <div class="publish-action">
-            <button class="publish-btn" onclick="submitPost()">立即发布</button>
+            <section>
+                <h2 class="editor-title">笔记内容</h2>
+                <div class="editor-card">
+                    <div class="field-wrap">
+                        <input type="text" id="post-title" class="publish-input" maxlength="20" placeholder="填写标题会有更多赞哦">
+                        <span class="char-count"><b id="title-count">0</b>/20</span>
+                    </div>
+                    <div class="field-wrap">
+                        <textarea id="post-text" class="publish-textarea" maxlength="1000" placeholder="分享你的真实体验和想法，让有需要的人看到吧..."></textarea>
+                        <span class="char-count textarea-count"><b id="text-count">0</b>/1000</span>
+                    </div>
+                    <div class="publish-tools">
+                        <button type="button" class="tool-chip" onclick="insertAtCursor('#话题# ')"># 话题</button>
+                        <button type="button" class="tool-chip" onclick="insertAtCursor('@')">@ 用户</button>
+                        <button type="button" class="tool-chip" onclick="insertAtCursor('😊')">😊 表情</button>
+                    </div>
+                    <div class="publish-settings">
+                        <div class="setting-row">
+                            <span><i class="fas fa-eye"></i> 谁可以看</span>
+                            <select id="post-visible"><option value="true">公开可见</option><option value="false">仅自己可见</option></select>
+                        </div>
+                        <div class="setting-row"><span><i class="fas fa-comment-dots"></i> 允许评论</span><span style="color:#aaa;font-size:12px">开启</span></div>
+                    </div>
+                    <div class="publish-actions">
+                        <button type="button" class="btn-secondary" onclick="window.location.href='/'">取消</button>
+                        <button id="publish-button" type="button" class="publish-btn" onclick="submitPost()" disabled>发布笔记</button>
+                    </div>
+                </div>
+            </section>
         </div>
     </div>
 </main>
 
+<nav class="mobile-nav" aria-label="移动端导航">
+    <a href="/"><i class="fas fa-compass"></i><span>发现</span></a>
+    <a href="/publish" class="active"><i class="fas fa-plus-square"></i><span>发布</span></a>
+    <a href="/?notifications=1"><i class="fas fa-bell"></i><span>通知</span></a>
+    <a href="/user/profile/{{.LoggedInUserID}}"><i class="fas fa-user"></i><span>我</span></a>
+</nav>
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
+
 <script>
-    function previewPostCover(event) {
-        const file = event.target.files[0];
-        if (file) {
-            document.getElementById('post-cover-preview').src = URL.createObjectURL(file);
-            document.getElementById('post-cover-preview').style.display = 'block';
-            document.getElementById('post-cover-text').style.display = 'none';
-        }
+    const coverInput = document.getElementById('post-cover');
+    const uploadArea = document.getElementById('upload-area');
+    const titleInput = document.getElementById('post-title');
+    const textInput = document.getElementById('post-text');
+    const publishButton = document.getElementById('publish-button');
+    let previewUrl = '';
+
+    function showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        document.getElementById('toast-container').appendChild(toast);
+        window.setTimeout(() => toast.remove(), 2400);
+    }
+
+    function updateFormState() {
+        document.getElementById('title-count').textContent = titleInput.value.length;
+        document.getElementById('text-count').textContent = textInput.value.length;
+        publishButton.disabled = !(coverInput.files[0] && titleInput.value.trim());
+        document.getElementById('draft-status').textContent = titleInput.value || textInput.value || coverInput.files[0] ? '内容尚未发布' : '内容仅保存在当前页面';
+    }
+
+    function previewPostCover(file) {
+        if (!file) return;
+        if (!file.type.startsWith('image/')) return showToast('请选择图片文件');
+        if (file.size > 20 * 1024 * 1024) return showToast('图片大小不能超过 20MB');
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        coverInput.files = transfer.files;
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        previewUrl = URL.createObjectURL(file);
+        const preview = document.getElementById('post-cover-preview');
+        preview.src = previewUrl;
+        preview.style.display = 'block';
+        document.getElementById('post-cover-text').style.display = 'none';
+        document.getElementById('replace-cover').style.display = 'inline-flex';
+        updateFormState();
+    }
+
+    function insertAtCursor(value) {
+        const start = textInput.selectionStart;
+        const end = textInput.selectionEnd;
+        textInput.setRangeText(value, start, end, 'end');
+        textInput.focus();
+        updateFormState();
     }
 
     async function submitPost() {
-        const coverFile = document.getElementById('post-cover').files[0];
-        const title = document.getElementById('post-title').value;
-        const text = document.getElementById('post-text').value;
-
-        if (!coverFile) return alert("必须上传封面图！");
-        if (!title) return alert("请填写标题！");
+        const coverFile = coverInput.files[0];
+        const title = titleInput.value.trim();
+        const text = textInput.value.trim();
+        if (!coverFile || !title) return showToast('请先上传图片并填写标题');
 
         const formData = new FormData();
-        formData.append("cover", coverFile);
-        formData.append("title", title);
-        formData.append("text", text);
+        formData.append('cover', coverFile);
+        formData.append('title', title);
+        formData.append('text', text);
+        formData.append('visible', document.getElementById('post-visible').value);
 
+        publishButton.disabled = true;
+        publishButton.textContent = '发布中...';
         try {
             const res = await fetch('/api/posts', {method: 'POST', body: formData});
+            const data = await res.json().catch(() => ({}));
             if (res.ok) {
-                alert("发布成功！");
-                window.location.href = "/"; // 发布成功后跳转回首页
+                showToast('发布成功');
+                window.setTimeout(() => window.location.href = '/', 500);
             } else {
-                const data = await res.json();
-                alert(data.error || "发布失败");
+                showToast(data.error || '发布失败，请稍后重试');
+                publishButton.disabled = false;
+                publishButton.textContent = '发布笔记';
             }
-        } catch (err) {
-            alert("网络错误");
+        } catch (error) {
+            showToast('网络错误，请稍后重试');
+            publishButton.disabled = false;
+            publishButton.textContent = '发布笔记';
         }
     }
 
-    function toggleMoreMenu(e) {
-        e.stopPropagation(); // 阻止点击事件冒泡，防止触发下面的全局关闭
+    function toggleMoreMenu(event) {
+        event.stopPropagation();
         document.getElementById('more-menu').classList.toggle('show');
     }
 
-    // 监听全局点击事件，点击空白处自动关闭菜单
-    document.addEventListener('click', function(e) {
-        const menu = document.getElementById('more-menu');
-        if (menu && menu.classList.contains('show')) {
-            menu.classList.remove('show');
-        }
-    });
-
-    // 处理退出登录
     async function handleLogout() {
-        try {
-            const res = await fetch('/api/auth/logout', { method: 'POST' });
-            if (res.ok) {
-                // 登出成功后，强制跳转回首页，首页检测不到 Cookie 会自动弹出登录框
-                window.location.href = "/";
-            } else {
-                alert("退出失败，请重试");
-            }
-        } catch (err) {
-            alert("网络请求错误");
-        }
+        const res = await fetch('/api/auth/logout', {method: 'POST'});
+        if (res.ok) window.location.href = '/';
+        else showToast('退出失败，请稍后重试');
     }
-</script>
 
+    coverInput.addEventListener('change', () => previewPostCover(coverInput.files[0]));
+    titleInput.addEventListener('input', updateFormState);
+    textInput.addEventListener('input', updateFormState);
+    ['dragenter', 'dragover'].forEach(type => uploadArea.addEventListener(type, event => {
+        event.preventDefault();
+        uploadArea.classList.add('dragging');
+    }));
+    ['dragleave', 'drop'].forEach(type => uploadArea.addEventListener(type, event => {
+        event.preventDefault();
+        uploadArea.classList.remove('dragging');
+    }));
+    uploadArea.addEventListener('drop', event => previewPostCover(event.dataTransfer.files[0]));
+    document.addEventListener('click', () => document.getElementById('more-menu').classList.remove('show'));
+    updateFormState();
+</script>
 </body>
 </html>
